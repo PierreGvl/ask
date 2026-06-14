@@ -1,0 +1,46 @@
+"use client";
+
+import { LogIn, LogOut, User as UserIcon } from "lucide-react";
+import { signOut } from "next-auth/react";
+import Link from "next/link";
+
+export function AccountFooter({
+  user,
+}: {
+  user: { name?: string | null; email?: string | null } | null;
+}) {
+  if (!user) {
+    return (
+      <Link
+        href="/login"
+        className="flex items-center gap-3 rounded-xl border border-line bg-white px-3 py-2.5 text-sm font-medium text-navy transition-colors hover:border-rose/40 hover:bg-rose-50"
+      >
+        <LogIn className="h-4 w-4 text-rose" />
+        Se connecter
+      </Link>
+    );
+  }
+
+  const label = user.name || user.email || "Mon compte";
+  return (
+    <div className="flex items-center gap-2 rounded-xl px-2 py-2">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose">
+        <UserIcon className="h-4 w-4" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-navy">{label}</p>
+        {user.email && user.name && (
+          <p className="truncate text-xs text-faint">{user.email}</p>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={() => signOut({ callbackUrl: "/" })}
+        aria-label="Se déconnecter"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-faint transition-colors hover:bg-rose-50 hover:text-rose"
+      >
+        <LogOut className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}

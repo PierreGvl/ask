@@ -1,0 +1,332 @@
+{
+  "colors": [
+    {
+      "value": "rgb(20, 25, 52)",
+      "weight": 22429629
+    },
+    {
+      "value": "rgb(229, 229, 229)",
+      "weight": 461860
+    },
+    {
+      "value": "rgb(82, 82, 82)",
+      "weight": 209564
+    },
+    {
+      "value": "rgb(38, 48, 100)",
+      "weight": 142461
+    },
+    {
+      "value": "rgb(115, 115, 115)",
+      "weight": 81894
+    },
+    {
+      "value": "rgb(255, 255, 255)",
+      "weight": 68694
+    },
+    {
+      "value": "rgb(227, 49, 112)",
+      "weight": 51278
+    },
+    {
+      "value": "rgb(23, 23, 23)",
+      "weight": 43713
+    },
+    {
+      "value": "rgb(193, 40, 96)",
+      "weight": 30849
+    },
+    {
+      "value": "rgb(212, 212, 212)",
+      "weight": 28028
+    },
+    {
+      "value": "rgb(160, 32, 80)",
+      "weight": 26500
+    },
+    {
+      "value": "rgb(64, 64, 64)",
+      "weight": 8944
+    },
+    {
+      "value": "rgb(163, 163, 163)",
+      "weight": 1415
+    }
+  ],
+  "backgrounds": [
+    {
+      "value": "rgba(0, 0, 0, 0)",
+      "weight": 13982832
+    },
+    {
+      "value": "rgb(255, 255, 255)",
+      "weight": 7987214
+    },
+    {
+      "value": "rgba(253, 238, 244, 0.3)",
+      "weight": 1082880
+    },
+    {
+      "value": "rgb(38, 48, 100)",
+      "weight": 219240
+    },
+    {
+      "value": "rgba(251, 218, 230, 0.6)",
+      "weight": 147456
+    },
+    {
+      "value": "rgba(255, 255, 255, 0.85)",
+      "weight": 110880
+    },
+    {
+      "value": "rgb(227, 49, 112)",
+      "weight": 29009
+    },
+    {
+      "value": "rgb(253, 238, 244)",
+      "weight": 15417
+    },
+    {
+      "value": "rgba(255, 255, 255, 0.1)",
+      "weight": 6286
+    },
+    {
+      "value": "rgb(193, 40, 96)",
+      "weight": 3136
+    },
+    {
+      "value": "rgb(245, 245, 245)",
+      "weight": 481
+    }
+  ],
+  "fontFamilies": [
+    {
+      "value": "\"Helvetica Neue\", Helvetica, Arial, sans-serif",
+      "weight": 23525807
+    },
+    {
+      "value": "\"Cormorant Garamond\", Georgia, serif",
+      "weight": 58542
+    },
+    {
+      "value": "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace",
+      "weight": 481
+    }
+  ],
+  "fontSizes": [
+    {
+      "value": "16px",
+      "weight": 22727587
+    },
+    {
+      "value": "14px",
+      "weight": 531177
+    },
+    {
+      "value": "72px",
+      "weight": 135143
+    },
+    {
+      "value": "12px",
+      "weight": 90551
+    },
+    {
+      "value": "18px",
+      "weight": 34945
+    },
+    {
+      "value": "36px",
+      "weight": 29970
+    },
+    {
+      "value": "30px",
+      "weight": 25102
+    },
+    {
+      "value": "11px",
+      "weight": 5204
+    },
+    {
+      "value": "10px",
+      "weight": 4508
+    },
+    {
+      "value": "24px",
+      "weight": 643
+    }
+  ],
+  "fontWeights": [
+    {
+      "value": "400",
+      "weight": 23222078
+    },
+    {
+      "value": "700",
+      "weight": 171987
+    },
+    {
+      "value": "600",
+      "weight": 113649
+    },
+    {
+      "value": "500",
+      "weight": 77115
+    }
+  ],
+  "lineHeights": [
+    {
+      "value": "24px",
+      "weight": 22717064
+    },
+    {
+      "value": "22.75px",
+      "weight": 309350
+    },
+    {
+      "value": "20px",
+      "weight": 232993
+    },
+    {
+      "value": "72px",
+      "weight": 135143
+    },
+    {
+      "value": "16px",
+      "weight": 91032
+    },
+    {
+      "value": "28px",
+      "weight": 34945
+    },
+    {
+      "value": "40px",
+      "weight": 29970
+    },
+    {
+      "value": "36px",
+      "weight": 25102
+    },
+    {
+      "value": "16.5px",
+      "weight": 5204
+    },
+    {
+      "value": "12.5px",
+      "weight": 3625
+    },
+    {
+      "value": "15px",
+      "weight": 402
+    }
+  ],
+  "radii": [
+    {
+      "value": "0px",
+      "weight": 22223848
+    },
+    {
+      "value": "24px",
+      "weight": 764384
+    },
+    {
+      "value": "16px",
+      "weight": 353378
+    },
+    {
+      "value": "9999px",
+      "weight": 182649
+    },
+    {
+      "value": "12px",
+      "weight": 60090
+    },
+    {
+      "value": "4px",
+      "weight": 481
+    }
+  ],
+  "shadows": [
+    {
+      "value": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 20px 25px -5px, rgba(0, 0, 0, 0.1) 0px 8px 10px -6px",
+      "weight": 262848
+    },
+    {
+      "value": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.05) 0px 1px 2px 0px",
+      "weight": 26129
+    },
+    {
+      "value": "rgb(255, 255, 255) 0px 0px 0px 0px, rgb(253, 238, 244) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+      "weight": 25600
+    },
+    {
+      "value": "rgb(255, 255, 255) 0px 0px 0px 0px, rgba(255, 255, 255, 0.4) 0px 0px 0px 4px, rgba(0, 0, 0, 0.25) 0px 25px 50px -12px",
+      "weight": 3136
+    }
+  ],
+  "spacings": [
+    {
+      "value": "64px",
+      "weight": 2821760
+    },
+    {
+      "value": "96px",
+      "weight": 2166720
+    },
+    {
+      "value": "48px",
+      "weight": 954880
+    },
+    {
+      "value": "20px",
+      "weight": 574280
+    },
+    {
+      "value": "24px",
+      "weight": 555376
+    },
+    {
+      "value": "40px",
+      "weight": 459536
+    },
+    {
+      "value": "16px",
+      "weight": 352269
+    },
+    {
+      "value": "80px",
+      "weight": 314880
+    },
+    {
+      "value": "32px",
+      "weight": 236576
+    },
+    {
+      "value": "12px",
+      "weight": 212045
+    },
+    {
+      "value": "8px",
+      "weight": 107311
+    },
+    {
+      "value": "4px",
+      "weight": 89934
+    },
+    {
+      "value": "14px",
+      "weight": 57433
+    },
+    {
+      "value": "6px",
+      "weight": 11517
+    },
+    {
+      "value": "10px",
+      "weight": 7941
+    },
+    {
+      "value": "2px",
+      "weight": 4587
+    }
+  ]
+}

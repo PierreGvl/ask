@@ -1,0 +1,186 @@
+{
+  "url": "https://www.lawinetech.com/",
+  "title": "La WineTech | The Global Wine Innovation Ecosystem",
+  "description": "La WineTech connects startups, producers, technology providers, researchers, investors and ecosystem partners driving innovation across the global wine industry.",
+  "og": {
+    "title": "La WineTech | The Global Wine Innovation Ecosystem",
+    "description": "La WineTech connects startups, producers, technology providers, researchers, investors and ecosystem partners driving innovation across the global wine industry.",
+    "image": "https://lawinetech.com/og-default.jpg"
+  },
+  "headings": {
+    "h1": [
+      "The globalWineTech community"
+    ],
+    "h2": [
+      "News",
+      "Upcoming events",
+      "Community members"
+    ],
+    "h3": [
+      "WineTech Tour Languedoc",
+      "1001CAVES",
+      "2XCOACHING",
+      "ACCORD",
+      "ADELPHE",
+      "Rejoignez the WineTech community"
+    ]
+  },
+  "paragraphs": [
+    "Connect talents, share innovation, and shape the future of wine together.",
+    "Le WineTech Tour Languedoc réunit les producteurs de vins du Languedoc et les entreprises innovantes de la filière lors d'une journée de speed meetings qualifiés.",
+    "SEYSSES-SAVES, France",
+    "Exchange, collaborate, and help build the future of wine.",
+    "La WineTech connects wine innovation talents across the world. A unique community to share, learn, collaborate.",
+    "Plateforme développée gratuitement par EtOH pour La WineTech.",
+    "Need a CRM, client portal, extranet, business application, or custom SaaS platform to boost your development?",
+    "🌐 etoh.io✉️ contact@etoh.io"
+  ],
+  "nav": [
+    {
+      "label": "La WineTechInnovate Together",
+      "href": "https://www.lawinetech.com/"
+    },
+    {
+      "label": "Home",
+      "href": "https://www.lawinetech.com/"
+    },
+    {
+      "label": "News",
+      "href": "https://www.lawinetech.com/news"
+    },
+    {
+      "label": "Events",
+      "href": "https://www.lawinetech.com/events"
+    },
+    {
+      "label": "Formations",
+      "href": "https://www.lawinetech.com/formations"
+    },
+    {
+      "label": "Members",
+      "href": "https://www.lawinetech.com/members"
+    },
+    {
+      "label": "About",
+      "href": "https://www.lawinetech.com/about"
+    },
+    {
+      "label": "Contact",
+      "href": "https://www.lawinetech.com/contact"
+    },
+    {
+      "label": "Sign in",
+      "href": "https://www.lawinetech.com/login"
+    },
+    {
+      "label": "Join",
+      "href": "https://www.lawinetech.com/join"
+    },
+    {
+      "label": "📝 Apply",
+      "href": "https://www.lawinetech.com/apply"
+    }
+  ],
+  "ctas": [
+    {
+      "label": "Search⌘K",
+      "href": null
+    },
+    {
+      "label": "EN",
+      "href": null
+    },
+    {
+      "label": "Contact",
+      "href": "https://www.lawinetech.com/contact"
+    },
+    {
+      "label": "Join",
+      "href": "https://www.lawinetech.com/join"
+    },
+    {
+      "label": "Rejoindre maintenant →",
+      "href": "https://www.lawinetech.com/join"
+    },
+    {
+      "label": "✉️ contact@etoh.io",
+      "href": "mailto:contact@etoh.io"
+    }
+  ],
+  "images": [
+    {
+      "src": "https://customer-assets.emergentagent.com/job_wine-tech-hub/artifacts/0pnaev76_LOGO_WT_ROSE%403x%20%281%29.png",
+      "alt": "La WineTech",
+      "width": 44,
+      "height": 44
+    },
+    {
+      "src": "https://customer-assets.emergentagent.com/job_wine-tech-hub/artifacts/8jo4w2ry_lawinetech-hero.png",
+      "alt": "WineTech ecosystem",
+      "width": 592,
+      "height": 444
+    },
+    {
+      "src": "https://www.lawinetech.com/defaults/member-logo.png",
+      "alt": "1001CAVES",
+      "width": 72,
+      "height": 72
+    },
+    {
+      "src": "https://www.lawinetech.com/defaults/member-logo.png",
+      "alt": "2XCOACHING",
+      "width": 72,
+      "height": 72
+    },
+    {
+      "src": "https://www.lawinetech.com/defaults/member-logo.png",
+      "alt": "ACCORD",
+      "width": 72,
+      "height": 72
+    },
+    {
+      "src": "https://www.lawinetech.com/defaults/member-logo.png",
+      "alt": "ADELPHE",
+      "width": 72,
+      "height": 72
+    },
+    {
+      "src": "https://customer-assets.emergentagent.com/job_wine-tech-hub/artifacts/0pnaev76_LOGO_WT_ROSE%403x%20%281%29.png",
+      "alt": "La WineTech",
+      "width": 44,
+      "height": 44
+    }
+  ],
+  "sections": [
+    {
+      "tag": "section",
+      "heading": "The globalWineTech community",
+      "snippet": "Innovate TogetherThe globalWineTech communityConnect talents, share innovation, and shape the future of wine together.Explore the communitySee events"
+    },
+    {
+      "tag": "section",
+      "heading": "News",
+      "snippet": "NewsSee all news"
+    },
+    {
+      "tag": "section",
+      "heading": "Upcoming events",
+      "snippet": "Upcoming eventsSee all events 24JUINWineTech Tour Languedoc Narbonne, FranceLe WineTech Tour Languedoc réunit les producteurs de vins du Languedoc et les entreprises innovantes de la filière lors d'une journée de speed meetings qualifiés.Learn more →"
+    },
+    {
+      "tag": "section",
+      "heading": "Community members",
+      "snippet": "Community membersSee all members 1001CAVESPORSPODER, Francecat-startup2XCOACHINGVENELLES, Francecat-expertACCORDSEYSSES-SAVES, FranceADELPHEPUTEAUX, France"
+    },
+    {
+      "tag": "section",
+      "heading": "Rejoignez the WineTech community",
+      "snippet": "Rejoignez the WineTech communityExchange, collaborate, and help build the future of wine.Rejoindre maintenant →"
+    }
+  ],
+  "logo": {
+    "source": "header-img",
+    "url": "https://customer-assets.emergentagent.com/job_wine-tech-hub/artifacts/0pnaev76_LOGO_WT_ROSE%403x%20%281%29.png",
+    "confidence": "high"
+  }
+}

@@ -1,0 +1,153 @@
+@import "tailwindcss";
+
+/*
+  Design tokens dérivés de lawinetech.com (extract/design-tokens.css).
+  Identité : navy #141934, rose magenta #e33170, rose clair #fdeef4.
+*/
+@theme {
+  --color-navy: #141934;
+  --color-navy-700: #263064;
+  --color-rose: #e33170;
+  --color-rose-600: #c12860;
+  --color-rose-700: #a02050;
+  --color-rose-50: #fdeef4;
+  --color-rose-100: #fbdae6;
+
+  --color-ink: #141934;
+  --color-muted: #525252;
+  --color-faint: #737373;
+  --color-line: #e5e5e5;
+  --color-surface: #ffffff;
+  --color-surface-2: #f7f7f9;
+
+  --font-sans: "Helvetica Neue", Helvetica, Arial, ui-sans-serif, system-ui,
+    sans-serif;
+  --font-serif: var(--font-cormorant), "Cormorant Garamond", Georgia, serif;
+
+  --radius-card: 16px;
+  --radius-pill: 9999px;
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #141934;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbars discrètes pour les panneaux de chat/historique */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: var(--color-line);
+  border-radius: 9999px;
+}
+
+/* Rendu markdown des réponses de l'assistant */
+.prose-chat {
+  line-height: 1.7;
+  font-size: 0.975rem;
+}
+.prose-chat > * + * {
+  margin-top: 0.85rem;
+}
+.prose-chat h1,
+.prose-chat h2,
+.prose-chat h3 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--color-navy);
+}
+.prose-chat h1 {
+  font-size: 1.5rem;
+}
+.prose-chat h2 {
+  font-size: 1.3rem;
+}
+.prose-chat h3 {
+  font-size: 1.1rem;
+}
+.prose-chat ul,
+.prose-chat ol {
+  padding-left: 1.4rem;
+}
+.prose-chat ul {
+  list-style: disc;
+}
+.prose-chat ol {
+  list-style: decimal;
+}
+.prose-chat li + li {
+  margin-top: 0.3rem;
+}
+.prose-chat a {
+  color: var(--color-rose);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose-chat code {
+  background: var(--color-surface-2);
+  padding: 0.1rem 0.35rem;
+  border-radius: 6px;
+  font-size: 0.85em;
+}
+.prose-chat pre {
+  background: var(--color-navy);
+  color: #f7f7f9;
+  padding: 1rem;
+  border-radius: 12px;
+  overflow-x: auto;
+}
+.prose-chat pre code {
+  background: transparent;
+  padding: 0;
+}
+.prose-chat blockquote {
+  border-left: 3px solid var(--color-rose-100);
+  padding-left: 1rem;
+  color: var(--color-muted);
+}
+.prose-chat table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9em;
+}
+.prose-chat th,
+.prose-chat td {
+  border: 1px solid var(--color-line);
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+}
+
+/* Curseur de frappe pendant le streaming */
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+.streaming-cursor::after {
+  content: "▍";
+  margin-left: 1px;
+  animation: blink 1s step-end infinite;
+  color: var(--color-rose);
+}

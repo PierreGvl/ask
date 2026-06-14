@@ -1,0 +1,45 @@
+# Postgres + pgvector pour le développement local.
+# En production (Coolify), le service `app` ci-dessous peut aussi être utilisé.
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-winetech}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-askwinetech}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-winetech}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Service applicatif (utilisé en prod / Coolify ; optionnel en local).
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      AUTH_SECRET: ${AUTH_SECRET}
+      AUTH_URL: ${AUTH_URL}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY}
+      CHAT_MODEL: ${CHAT_MODEL:-mistral-large-latest}
+      TITLE_MODEL: ${TITLE_MODEL:-mistral-small-latest}
+      EMBED_MODEL: ${EMBED_MODEL:-mistral-embed}
+      RAG_MAX_DISTANCE: ${RAG_MAX_DISTANCE:-0.70}
+      RAG_TOP_K: ${RAG_TOP_K:-8}
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    profiles:
+      - prod
+
+volumes:
+  pgdata:

@@ -1,0 +1,103 @@
+{
+  "palette": {
+    "primary": "#141934",
+    "secondary": "#fdeef4",
+    "accent": "#263064",
+    "brand": [
+      "#141934",
+      "#fdeef4",
+      "#263064",
+      "#fbdae6",
+      "#e33170"
+    ],
+    "neutrals": [
+      "#ffffff",
+      "#e5e5e5",
+      "#525252",
+      "#737373",
+      "#171717",
+      "#d4d4d4"
+    ]
+  },
+  "typography": {
+    "bodyFontFamily": "\"Helvetica Neue\", Helvetica, Arial, sans-serif",
+    "headingFontFamily": "\"Cormorant Garamond\", Georgia, serif",
+    "sizes": [
+      "16px",
+      "14px",
+      "72px",
+      "12px",
+      "18px",
+      "36px"
+    ],
+    "weights": [
+      "400",
+      "700",
+      "600",
+      "500"
+    ],
+    "lineHeights": [
+      "24px",
+      "22.75px",
+      "20px",
+      "72px"
+    ]
+  },
+  "radii": [
+    "0px",
+    "24px",
+    "16px",
+    "9999px"
+  ],
+  "shadows": [
+    "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 20px 25px -5px, rgba(0, 0, 0, 0.1) 0px 8px 10px -6px",
+    "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.05) 0px 1px 2px 0px",
+    "rgb(255, 255, 255) 0px 0px 0px 0px, rgb(253, 238, 244) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+  ],
+  "spacings": [
+    "64px",
+    "96px",
+    "48px",
+    "20px",
+    "24px",
+    "40px"
+  ],
+  "_meta": {
+    "fgPalette": {
+      "primary": "#141934",
+      "secondary": "#263064",
+      "accent": "#e33170",
+      "brand": [
+        "#141934",
+        "#263064",
+        "#e33170",
+        "#c12860",
+        "#a02050"
+      ],
+      "neutrals": [
+        "#e5e5e5",
+        "#525252",
+        "#737373",
+        "#ffffff",
+        "#171717",
+        "#d4d4d4"
+      ]
+    },
+    "bgPalette": {
+      "primary": "#fdeef4",
+      "secondary": "#263064",
+      "accent": "#fbdae6",
+      "brand": [
+        "#fdeef4",
+        "#263064",
+        "#fbdae6",
+        "#e33170",
+        "#c12860"
+      ],
+      "neutrals": [
+        "#ffffff",
+        "#f5f5f5"
+      ]
+    }
+  }
+}
