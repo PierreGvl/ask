@@ -13,7 +13,6 @@ export const metadata: Metadata = {
   title: "Ask By la Wine Tech",
   description:
     "Une IA Souveraine pour répondre à toutes les questions des vignerons.",
-  icons: { icon: "/logo-ask.jpeg" },
 };
 
 export default function RootLayout({

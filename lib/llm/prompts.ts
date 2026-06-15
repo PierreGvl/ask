@@ -20,7 +20,7 @@ STYLE :
 - Adapte-toi au niveau d'un vigneron : pratique et actionnable.`;
 
 export const GREETING =
-  "Bonjour ! Je suis votre assistant de la Wine Tech. Posez-moi vos questions sur la réglementation, les appellations, l'œnologie ou tout autre sujet lié au vin — je m'appuie sur des sources vérifiées pour vous répondre.";
+  "Ask, l'assistant IA souverain de la Wine Tech pour répondre à toutes les questions des vignerons.";
 
 /** Quelques suggestions affichées sur l'écran d'accueil. */
 export const SUGGESTIONS = [

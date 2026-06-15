@@ -10,14 +10,9 @@ export default async function LoginPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="text-center">
-        <h1 className="font-serif text-2xl font-semibold text-navy">
-          Connexion
-        </h1>
-        <p className="mt-1 text-sm text-muted">
-          Accédez à votre historique de conversations.
-        </p>
-      </div>
+      <h1 className="text-center text-xl font-semibold tracking-tight text-navy">
+        Connexion
+      </h1>
       <LoginForm />
     </div>
   );

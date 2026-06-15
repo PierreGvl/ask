@@ -10,14 +10,9 @@ export default async function RegisterPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="text-center">
-        <h1 className="font-serif text-2xl font-semibold text-navy">
-          Créer un compte
-        </h1>
-        <p className="mt-1 text-sm text-muted">
-          Conservez vos échanges et retrouvez votre historique.
-        </p>
-      </div>
+      <h1 className="text-center text-xl font-semibold tracking-tight text-navy">
+        Créer un compte
+      </h1>
       <RegisterForm />
     </div>
   );

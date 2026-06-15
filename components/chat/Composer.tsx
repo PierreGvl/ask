@@ -7,15 +7,18 @@ import {
   useRef,
   useState,
 } from "react";
+import { cn } from "@/lib/utils";
 
 export function Composer({
   onSend,
   onStop,
   busy,
+  large,
 }: {
   onSend: (text: string) => void;
   onStop: () => void;
   busy: boolean;
+  large?: boolean;
 }) {
   const [value, setValue] = useState("");
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -58,7 +61,10 @@ export function Composer({
           onKeyDown={onKeyDown}
           rows={1}
           placeholder="Posez votre question sur le vin…"
-          className="max-h-[200px] flex-1 resize-none bg-transparent px-3 py-2 text-[0.95rem] text-ink placeholder:text-faint focus:outline-none"
+          className={cn(
+            "max-h-[240px] flex-1 resize-none bg-transparent px-3 py-2 text-[0.95rem] text-ink placeholder:text-faint focus:outline-none",
+            large && "min-h-[96px]",
+          )}
         />
         {busy ? (
           <button

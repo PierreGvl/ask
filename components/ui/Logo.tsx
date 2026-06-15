@@ -13,7 +13,7 @@ export function Logo({
   return (
     <span className={cn("inline-flex items-center gap-2", className)}>
       <Image
-        src="/logo-ask.jpeg"
+        src="/logo.png"
         alt="Ask By la Wine Tech"
         width={size}
         height={size}

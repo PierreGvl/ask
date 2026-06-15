@@ -9,6 +9,7 @@ import type { ChatUIMessage } from "@/lib/chat/types";
 import { Composer } from "./Composer";
 import { Greeting } from "./Greeting";
 import { Message } from "./Message";
+import { Suggestions } from "./Suggestions";
 
 export function ChatPane({
   chatId,
@@ -70,30 +71,38 @@ export function ChatPane({
         </div>
       )}
 
-      <div className="scrollbar-thin flex-1 overflow-y-auto">
-        {empty ? (
-          <div className="flex h-full items-center justify-center py-10">
-            <Greeting onPick={handleSend} />
+      {empty ? (
+        <div className="scrollbar-thin flex-1 overflow-y-auto">
+          <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col items-center justify-center gap-8 px-4 py-8">
+            <Greeting />
+            <Suggestions onPick={handleSend} />
+            <div className="w-full">
+              <Composer onSend={handleSend} onStop={stop} busy={busy} large />
+            </div>
           </div>
-        ) : (
-          <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8">
-            {messages.map((m, i) => (
-              <Message
-                key={m.id}
-                message={m}
-                streaming={
-                  busy && i === messages.length - 1 && m.role === "assistant"
-                }
-              />
-            ))}
-            <div ref={bottomRef} />
+        </div>
+      ) : (
+        <>
+          <div className="scrollbar-thin flex-1 overflow-y-auto">
+            <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8">
+              {messages.map((m, i) => (
+                <Message
+                  key={m.id}
+                  message={m}
+                  streaming={
+                    busy && i === messages.length - 1 && m.role === "assistant"
+                  }
+                />
+              ))}
+              <div ref={bottomRef} />
+            </div>
           </div>
-        )}
-      </div>
 
-      <div className="border-t border-line bg-white/80 px-4 py-4 backdrop-blur">
-        <Composer onSend={handleSend} onStop={stop} busy={busy} />
-      </div>
+          <div className="border-t border-line bg-white/80 px-4 py-4 backdrop-blur">
+            <Composer onSend={handleSend} onStop={stop} busy={busy} />
+          </div>
+        </>
+      )}
     </div>
   );
 }
