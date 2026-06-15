@@ -18,6 +18,7 @@ texts=(
   "32011R1169|reglement-ue-1169-2011-information-consommateurs.html|Règlement (UE) n° 1169/2011 — information des consommateurs sur les denrées (étiquetage, allergènes)|Règlement (UE) n° 1169/2011"
   "32018R0273|reglement-ue-2018-273-casier-viticole-declarations.html|Règlement délégué (UE) 2018/273 — casier viticole, déclarations, documents d'accompagnement, autorisations de plantation|Règlement délégué (UE) 2018/273"
   "32018R0274|reglement-ue-2018-274-execution-casier-declarations.html|Règlement d'exécution (UE) 2018/274 — casier viticole et déclarations (modalités)|Règlement d'exécution (UE) 2018/274"
+  "32018R0848|reglement-ue-2018-848-agriculture-biologique.html|Règlement (UE) 2018/848 — production biologique et étiquetage des produits biologiques|Règlement (UE) 2018/848"
 )
 
 for entry in "${texts[@]}"; do
