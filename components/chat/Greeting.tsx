@@ -13,7 +13,7 @@ export function Greeting() {
           priority
           className="object-contain"
         />
-        <h1 className="font-serif text-5xl font-semibold text-navy sm:text-6xl">
+        <h1 className="font-serif text-4xl font-semibold text-navy sm:text-5xl md:text-6xl">
           Bonjour&nbsp;!
         </h1>
       </div>
