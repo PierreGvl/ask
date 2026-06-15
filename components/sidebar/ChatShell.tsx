@@ -2,7 +2,7 @@
 
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
-import { Logo } from "@/components/ui/Logo";
+import { Wordmark } from "@/components/ui/Wordmark";
 import { cn } from "@/lib/utils";
 import type { ConversationSummary } from "./ConversationItem";
 import { Sidebar } from "./Sidebar";
@@ -54,7 +54,7 @@ export function ChatShell({
           >
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
-          <Logo size={28} withWordmark />
+          <Wordmark />
           <span className="w-9" />
         </div>
 

@@ -19,7 +19,9 @@ export function RegisterForm() {
     const form = new FormData(e.currentTarget);
     const email = String(form.get("email"));
     const password = String(form.get("password"));
-    const name = String(form.get("name") ?? "");
+    const firstName = String(form.get("firstName") ?? "").trim();
+    const lastName = String(form.get("lastName") ?? "").trim();
+    const name = [firstName, lastName].filter(Boolean).join(" ");
 
     const res = await fetch("/api/register", {
       method: "POST",
@@ -43,11 +45,31 @@ export function RegisterForm() {
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="name" className="text-sm font-medium text-ink">
-          Nom <span className="text-faint">(optionnel)</span>
-        </label>
-        <Input id="name" name="name" type="text" autoComplete="name" />
+      <div className="flex gap-3">
+        <div className="flex flex-1 flex-col gap-1.5">
+          <label htmlFor="firstName" className="text-sm font-medium text-ink">
+            Prénom
+          </label>
+          <Input
+            id="firstName"
+            name="firstName"
+            type="text"
+            required
+            autoComplete="given-name"
+          />
+        </div>
+        <div className="flex flex-1 flex-col gap-1.5">
+          <label htmlFor="lastName" className="text-sm font-medium text-ink">
+            Nom
+          </label>
+          <Input
+            id="lastName"
+            name="lastName"
+            type="text"
+            required
+            autoComplete="family-name"
+          />
+        </div>
       </div>
       <div className="flex flex-col gap-1.5">
         <label htmlFor="email" className="text-sm font-medium text-ink">

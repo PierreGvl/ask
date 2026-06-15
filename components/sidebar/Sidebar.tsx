@@ -4,7 +4,7 @@ import { Plus } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { NEW_CHAT_EVENT } from "@/components/chat/ChatView";
-import { Logo } from "@/components/ui/Logo";
+import { Wordmark } from "@/components/ui/Wordmark";
 import { AccountFooter } from "./AccountFooter";
 import {
   ConversationItem,
@@ -36,9 +36,9 @@ export function Sidebar({
 
   return (
     <div className="flex h-dvh w-[280px] flex-col border-r border-line bg-surface-2">
-      <div className="px-3 py-4">
-        <Link href="/" onClick={onNavigate} className="block px-1.5">
-          <Logo size={34} withWordmark />
+      <div className="px-3 pt-8 pb-8">
+        <Link href="/" onClick={onNavigate} className="flex justify-center px-1.5">
+          <Wordmark />
         </Link>
       </div>
 
