@@ -59,7 +59,14 @@ Backlog des améliorations possibles, regroupées par thème. Statuts :
 - 💡 Vérification d'email à l'inscription (SMTP souverain).
 - 💡 Rôles / espace pro (multi-utilisateurs d'une même structure).
 
-## 6. Technique & exploitation
+## 6. Monétisation
+
+- 💡 **Mécanique d'abonnement** : paiement Stripe, paliers (Gratuit / Pro /
+  Structure), **quotas de questions**, espace facturation.
+- 💡 Tableau de bord d'usage par compte (pour la facturation et le support).
+- 👉 Stratégie tarifaire détaillée dans [`MODELE-ECONOMIQUE.md`](MODELE-ECONOMIQUE.md).
+
+## 7. Technique & exploitation
 
 - ✅ Déploiement automatique (push → build → prod), HTTPS, swap serveur.
 - 💡 **Sauvegardes** automatiques planifiées de la base.
