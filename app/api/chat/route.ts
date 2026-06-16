@@ -69,9 +69,12 @@ export async function POST(req: Request) {
     system: SYSTEM_PROMPT,
     messages: await convertToModelMessages(messages),
     tools: ragTools,
-    // Plafond serré : limite les allers-retours (donc les appels Mistral) pour
-    // éviter de saturer la limite de débit de l'API sur les questions complexes.
-    stopWhen: stepCountIs(3),
+    // 1 tour de recherche, puis réponse. Au 2e tour, on interdit les outils
+    // (`toolChoice: "none"`) pour FORCER une réponse texte — sinon le modèle
+    // enchaînerait des recherches et n'aurait pas le tour pour conclure.
+    stopWhen: stepCountIs(2),
+    prepareStep: ({ stepNumber }) =>
+      stepNumber >= 1 ? { toolChoice: "none" } : {},
     temperature: 0.2,
     // Reprises automatiques (backoff) sur erreurs transitoires, dont les 429.
     maxRetries: 2,
