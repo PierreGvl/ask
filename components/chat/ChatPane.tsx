@@ -2,6 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
+import { Loader2, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
@@ -26,18 +27,23 @@ export function ChatPane({
   const navigatedRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const { messages, sendMessage, status, stop } = useChat<ChatUIMessage>({
-    id: chatId,
-    messages: initialMessages,
-    transport: new DefaultChatTransport({
-      api: "/api/chat",
-      prepareSendMessagesRequest: ({ messages, id }) => ({
-        body: { messages, conversationId: id },
+  const { messages, sendMessage, status, stop, error, regenerate } =
+    useChat<ChatUIMessage>({
+      id: chatId,
+      messages: initialMessages,
+      transport: new DefaultChatTransport({
+        api: "/api/chat",
+        prepareSendMessagesRequest: ({ messages, id }) => ({
+          body: { messages, conversationId: id },
+        }),
       }),
-    }),
-  });
+    });
 
   const busy = status === "submitted" || status === "streaming";
+  // Requête envoyée mais aucune réponse encore en cours de rédaction.
+  const waiting =
+    status === "submitted" &&
+    messages[messages.length - 1]?.role !== "assistant";
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -94,6 +100,30 @@ export function ChatPane({
                   }
                 />
               ))}
+
+              {waiting && (
+                <div className="flex items-center gap-2 text-sm text-faint">
+                  <Loader2 className="h-4 w-4 animate-spin text-rose" />
+                  L&apos;assistant réfléchit…
+                </div>
+              )}
+
+              {error && (
+                <div className="flex flex-col items-start gap-2 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                  <p>
+                    Une erreur est survenue. La réponse a peut-être été
+                    interrompue ou a pris trop de temps. Réessayez.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => regenerate()}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-rose px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-rose-600"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Réessayer
+                  </button>
+                </div>
+              )}
               <div ref={bottomRef} />
             </div>
           </div>
