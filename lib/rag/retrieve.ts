@@ -39,7 +39,11 @@ export async function retrieveChunks(
   const domain = opts.domain ?? null;
   const candidates = Math.max(topK * 3, 20);
 
-  const { embedding } = await embed({ model: embeddingModel, value: query });
+  const { embedding } = await embed({
+    model: embeddingModel,
+    value: query,
+    maxRetries: 2,
+  });
   const vec = toVectorLiteral(embedding);
 
   const rows = await db.execute<{

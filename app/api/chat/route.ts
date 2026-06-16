@@ -69,8 +69,12 @@ export async function POST(req: Request) {
     system: SYSTEM_PROMPT,
     messages: await convertToModelMessages(messages),
     tools: ragTools,
-    stopWhen: stepCountIs(5),
+    // Plafond serré : limite les allers-retours (donc les appels Mistral) pour
+    // éviter de saturer la limite de débit de l'API sur les questions complexes.
+    stopWhen: stepCountIs(3),
     temperature: 0.2,
+    // Reprises automatiques (backoff) sur erreurs transitoires, dont les 429.
+    maxRetries: 2,
     onStepFinish: (step) => {
       for (const tr of step.toolResults ?? []) {
         if (tr.toolName !== "search_regulation") continue;
