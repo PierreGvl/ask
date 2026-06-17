@@ -72,7 +72,7 @@ export function ChatPane({
           Vous discutez en mode invité.{" "}
           <Link
             href="/login"
-            className="font-semibold text-rose-100 underline-offset-2 hover:underline"
+            className="font-semibold text-rose underline-offset-2 hover:underline"
           >
             Connectez-vous
           </Link>{" "}
