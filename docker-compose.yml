@@ -5,15 +5,15 @@ services:
     image: pgvector/pgvector:pg16
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-winetech}
+      POSTGRES_USER: ${POSTGRES_USER:-ask}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
-      POSTGRES_DB: ${POSTGRES_DB:-askwinetech}
+      POSTGRES_DB: ${POSTGRES_DB:-ask}
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-winetech}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ask}"]
       interval: 10s
       timeout: 5s
       retries: 5
