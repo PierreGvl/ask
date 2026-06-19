@@ -6,6 +6,7 @@ import {
   getConversation,
   setConversationTitle,
 } from "@/lib/db/queries";
+import { resolveProject } from "@/lib/tenant/resolve";
 
 export const runtime = "nodejs";
 
@@ -19,8 +20,12 @@ export async function PATCH(
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   }
+  const project = await resolveProject();
+  if (!project) {
+    return NextResponse.json({ error: "Projet introuvable" }, { status: 404 });
+  }
   const { id } = await params;
-  const owned = await getConversation(id, session.user.id);
+  const owned = await getConversation(id, project.id, session.user.id);
   if (!owned) {
     return NextResponse.json({ error: "Introuvable" }, { status: 404 });
   }
@@ -42,7 +47,11 @@ export async function DELETE(
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   }
+  const project = await resolveProject();
+  if (!project) {
+    return NextResponse.json({ error: "Projet introuvable" }, { status: 404 });
+  }
   const { id } = await params;
-  await deleteConversation(id, session.user.id);
+  await deleteConversation(id, project.id, session.user.id);
   return NextResponse.json({ ok: true });
 }

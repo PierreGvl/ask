@@ -1,11 +1,7 @@
-import {
-  convertToModelMessages,
-  stepCountIs,
-  streamText,
-  type UIMessage,
-} from "ai";
+import { convertToModelMessages, type UIMessage } from "ai";
 import { z } from "zod";
 import { auth } from "@/auth";
+import { createChatStream } from "@/lib/chat/engine";
 import type { ChatMessageMetadata } from "@/lib/chat/types";
 import {
   ensureConversation,
@@ -14,11 +10,11 @@ import {
   touchConversation,
 } from "@/lib/db/queries";
 import type { Citation, ToolCallTrace } from "@/lib/db/schema";
-import { chatModel } from "@/lib/llm/models";
-import { SYSTEM_PROMPT } from "@/lib/llm/prompts";
+import { env } from "@/lib/env";
 import { generateTitle } from "@/lib/llm/title";
-import type { SearchRegulationOutput } from "@/lib/rag/tools";
-import { ragTools } from "@/lib/rag/tools";
+import type { DeclarationData } from "@/lib/pdf/types";
+import { rateLimit, sweepRateLimits } from "@/lib/rate-limit";
+import { resolveProject } from "@/lib/tenant/resolve";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -44,19 +40,46 @@ export async function POST(req: Request) {
     return new Response("Requête invalide", { status: 400 });
   }
 
+  const project = await resolveProject();
+  if (!project || project.status !== "active") {
+    return new Response("Projet introuvable", { status: 404 });
+  }
+
   const messages = parsed.data.messages as UIMessage[];
   const conversationId = parsed.data.conversationId;
   const session = await auth();
   const userId = session?.user?.id ?? null;
   const persist = Boolean(userId && conversationId);
 
+  // Rate-limit du mode invité (anonyme), par IP + projet, anti-abus.
+  if (!userId && env.GUEST_RATE_LIMIT_PER_MIN > 0) {
+    const ip =
+      req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+      req.headers.get("x-real-ip") ||
+      "unknown";
+    const now = Date.now();
+    sweepRateLimits(now);
+    const r = rateLimit(
+      `guest:${project.id}:${ip}`,
+      { limit: env.GUEST_RATE_LIMIT_PER_MIN, windowMs: 60_000 },
+      now,
+    );
+    if (!r.ok) {
+      return new Response("Trop de requêtes, réessayez plus tard.", {
+        status: 429,
+        headers: { "Retry-After": String(r.retryAfter) },
+      });
+    }
+  }
+
   // Citations accumulées via les résultats d'outil (anti-doublon par titre).
   const collected: Citation[] = [];
   const toolTraces: ToolCallTrace[] = [];
   const seenSources = new Set<string>();
+  const declarations: DeclarationData[] = [];
 
   if (persist) {
-    await ensureConversation(conversationId!, userId!);
+    await ensureConversation(conversationId!, project.id, userId!);
     await insertMessage({
       conversationId: conversationId!,
       role: "user",
@@ -64,38 +87,14 @@ export async function POST(req: Request) {
     });
   }
 
-  const result = streamText({
-    model: chatModel,
-    system: SYSTEM_PROMPT,
-    messages: await convertToModelMessages(messages),
-    tools: ragTools,
-    // 1 tour de recherche, puis réponse. Au 2e tour, on interdit les outils
-    // (`toolChoice: "none"`) pour FORCER une réponse texte — sinon le modèle
-    // enchaînerait des recherches et n'aurait pas le tour pour conclure.
-    stopWhen: stepCountIs(2),
-    prepareStep: ({ stepNumber }) =>
-      stepNumber >= 1 ? { toolChoice: "none" } : {},
-    temperature: 0.2,
-    // Reprises automatiques (backoff) sur erreurs transitoires, dont les 429.
-    maxRetries: 2,
-    onStepFinish: (step) => {
-      for (const tr of step.toolResults ?? []) {
-        if (tr.toolName !== "search_regulation") continue;
-        const out = tr.output as SearchRegulationOutput;
-        toolTraces.push({
-          name: tr.toolName,
-          args: (tr.input ?? {}) as Record<string, unknown>,
-          resultCount: out.found,
-        });
-        for (const c of out.citations ?? []) {
-          const key = `${c.title}|${c.reference ?? ""}`;
-          if (seenSources.has(key)) continue;
-          seenSources.add(key);
-          collected.push({ ...c, n: collected.length + 1 });
-        }
-      }
-    },
-    onFinish: async ({ text }) => {
+  const result = createChatStream({
+    project,
+    modelMessages: await convertToModelMessages(messages),
+    collected,
+    toolTraces,
+    seenSources,
+    declarations,
+    onFinish: async (text) => {
       if (!persist) return;
       try {
         await insertMessage({
@@ -120,8 +119,11 @@ export async function POST(req: Request) {
 
   return result.toUIMessageStreamResponse<UIMessage<ChatMessageMetadata>>({
     messageMetadata: ({ part }) => {
-      if (part.type === "finish" && collected.length) {
-        return { citations: collected };
+      if (part.type === "finish") {
+        const meta: ChatMessageMetadata = {};
+        if (collected.length) meta.citations = collected;
+        if (declarations.length) meta.declaration = declarations.at(-1);
+        return meta;
       }
     },
     onError: (error) => {

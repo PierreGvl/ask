@@ -1,9 +1,11 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   index,
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uuid,
@@ -16,6 +18,44 @@ export type Citation = {
   title: string;
   url: string | null;
   reference: string | null;
+  /** Provenance : extrait du corpus du projet, ou résultat de recherche web. */
+  kind?: "doc" | "web";
+};
+
+export type LicenseTier = "free" | "pro" | "domaine";
+
+/** Drapeaux de fonctionnalités résolus depuis le tier (cf. lib/features/tiers.ts). */
+export type ProjectFeatures = {
+  customRag: boolean;
+  webSearch: boolean;
+  pdfGeneration: boolean;
+  widget: boolean;
+};
+
+/** Identité visuelle d'un projet (dé-hardcoding du branding). */
+export type WordmarkPart = {
+  text: string;
+  color?: string;
+  dim?: boolean; // segment atténué (plus petit/discret), ex. « By La »
+};
+
+export type ProjectTheme = {
+  colors?: Record<string, string>; // ex. { navy: "#141934", rose: "#e33170" }
+  logoUrl?: string | null;
+  wordmark?: { parts: WordmarkPart[] };
+  fonts?: { sans?: string; serif?: string };
+};
+
+/** Configuration métier d'un projet (dé-hardcoding du prompt/persona). */
+export type ProjectConfig = {
+  systemPrompt?: string; // persona/cadrage métier (les garde-fous restent en base partagée)
+  greeting?: string;
+  suggestions?: string[];
+  locale?: string;
+  defaultDomain?: string;
+  ragMaxDistance?: number;
+  ragTopK?: number;
+  searchToolDescription?: string; // description de search_documents, agnostique du métier
 };
 
 export type ToolCallTrace = {
@@ -24,22 +64,161 @@ export type ToolCallTrace = {
   resultCount?: number;
 };
 
+// --- Projets (tenants) : le cœur du multi-tenant ---
+// Chaque projet = un client/déclinaison (Ask by La Wine Tech, HervAI, imprimeur…).
+// projectId est la frontière d'isolation dure ; `domain` reste un sous-corpus intra-tenant.
+export const projects = pgTable("projects", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  slug: text("slug").notNull().unique(), // routing sous-domaine : winetech, hervai…
+  name: text("name").notNull(),
+  status: text("status", { enum: ["active", "suspended"] })
+    .notNull()
+    .default("active"),
+  // tier dénormalisé (cache) ; la table subscriptions est la source de vérité
+  tier: text("tier", { enum: ["free", "pro", "domaine"] })
+    .notNull()
+    .default("free"),
+  customDomain: text("custom_domain").unique(), // ex. ask.hervai.fr
+  theme: jsonb("theme").$type<ProjectTheme>(),
+  config: jsonb("config").$type<ProjectConfig>(),
+  // overrides de features par-dessus les défauts du tier (cf. lib/features/tiers.ts)
+  features: jsonb("features").$type<Partial<ProjectFeatures>>(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
 // --- Comptes utilisateurs (auth email/mot de passe, sessions JWT) ---
+// users reste global : 1 personne = 1 compte, membre de N projets via project_users.
 export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   name: text("name"),
+  // accès à la console plateforme /admin (staff Obsidio, vue globale)
+  isPlatformAdmin: boolean("is_platform_admin").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
 });
+
+// --- Appartenance user ↔ projet + rôle scoped projet ---
+export const projectUsers = pgTable(
+  "project_users",
+  {
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: text("role", { enum: ["owner", "admin", "member"] })
+      .notNull()
+      .default("member"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.projectId, t.userId] })],
+);
+
+// --- Abonnements (source de vérité du tier ; projects.tier en est le cache) ---
+export const subscriptions = pgTable(
+  "subscriptions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    tier: text("tier", { enum: ["free", "pro", "domaine"] }).notNull(),
+    status: text("status", {
+      enum: ["active", "trialing", "past_due", "canceled"],
+    })
+      .notNull()
+      .default("active"),
+    provider: text("provider", { enum: ["manual", "stripe"] })
+      .notNull()
+      .default("manual"),
+    externalId: text("external_id"), // id abonnement Stripe, nullable
+    currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [index("subscriptions_project_idx").on(t.projectId)],
+);
+
+// --- Sources de données par projet (panneau de pilotage de la console) ---
+export const dataSources = pgTable(
+  "data_sources",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    kind: text("kind", {
+      enum: [
+        "public_corpus",
+        "upload",
+        "url_crawl",
+        "prestashop_feed",
+        "web_search",
+      ],
+    }).notNull(),
+    name: text("name").notNull(),
+    domain: text("domain"), // sous-corpus alimenté (lie documents.domain)
+    status: text("status", { enum: ["idle", "syncing", "error"] })
+      .notNull()
+      .default("idle"),
+    docCount: integer("doc_count").notNull().default(0),
+    lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    config: jsonb("config").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [index("data_sources_project_idx").on(t.projectId)],
+);
+
+// --- Clés API (auth du widget embarquable, scopées projet) ---
+export const apiKeys = pgTable(
+  "api_keys",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    keyHash: text("key_hash").notNull(), // hash de la clé, jamais le secret en clair
+    prefix: text("prefix").notNull(), // préfixe visible pour la console (ask_pk_ab12)
+    allowedOrigins: jsonb("allowed_origins").$type<string[]>(), // CORS
+    scopes: jsonb("scopes").$type<string[]>(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [index("api_keys_project_idx").on(t.projectId)],
+);
 
 // --- Conversations (historique) ---
 export const conversations = pgTable(
   "conversations",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -51,7 +230,13 @@ export const conversations = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (t) => [index("conversations_user_idx").on(t.userId, t.updatedAt)],
+  (t) => [
+    index("conversations_project_user_idx").on(
+      t.projectId,
+      t.userId,
+      t.updatedAt,
+    ),
+  ],
 );
 
 // --- Messages ---
@@ -76,25 +261,36 @@ export const messages = pgTable(
 );
 
 // --- Documents source du RAG ---
-export const documents = pgTable("documents", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  source: text("source").notNull(), // 'legifrance' | 'inao' | 'eurlex' | 'upload'
-  domain: text("domain").notNull().default("reglementaire"),
-  title: text("title").notNull(),
-  url: text("url"),
-  reference: text("reference"), // n° article/règlement
-  contentHash: text("content_hash").notNull(), // dédup / ré-ingestion idempotente
-  metadata: jsonb("metadata").$type<Record<string, unknown>>(),
-  ingestedAt: timestamp("ingested_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+export const documents = pgTable(
+  "documents",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    source: text("source").notNull(), // 'legifrance' | 'inao' | 'eurlex' | 'upload'
+    domain: text("domain").notNull().default("reglementaire"),
+    title: text("title").notNull(),
+    url: text("url"),
+    reference: text("reference"), // n° article/règlement
+    contentHash: text("content_hash").notNull(), // dédup / ré-ingestion idempotente
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+    ingestedAt: timestamp("ingested_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [index("documents_project_domain_idx").on(t.projectId, t.domain)],
+);
 
 // --- Chunks vectorisés ---
 export const chunks = pgTable(
   "chunks",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    // projectId dénormalisé : filtre d'isolation dans le chemin ANN chaud (pas de join)
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
     documentId: uuid("document_id")
       .notNull()
       .references(() => documents.id, { onDelete: "cascade" }),
@@ -117,7 +313,8 @@ export const chunks = pgTable(
       "gin",
       sql`to_tsvector('french', ${t.content})`,
     ),
-    index("chunks_domain_idx").on(t.domain),
+    // Isolation tenant + filtre sous-corpus
+    index("chunks_project_domain_idx").on(t.projectId, t.domain),
   ],
 );
 
@@ -126,3 +323,8 @@ export type Conversation = typeof conversations.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type DocumentRow = typeof documents.$inferSelect;
 export type Chunk = typeof chunks.$inferSelect;
+export type Project = typeof projects.$inferSelect;
+export type ProjectUser = typeof projectUsers.$inferSelect;
+export type Subscription = typeof subscriptions.$inferSelect;
+export type DataSource = typeof dataSources.$inferSelect;
+export type ApiKey = typeof apiKeys.$inferSelect;

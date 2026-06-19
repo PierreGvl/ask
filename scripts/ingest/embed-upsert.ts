@@ -1,5 +1,5 @@
 import { embedMany } from "ai";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { chunks, documents } from "@/lib/db/schema";
 import { embeddingModel } from "@/lib/llm/models";
@@ -39,6 +39,7 @@ async function embedBatched(texts: string[]): Promise<number[][]> {
 }
 
 export type UpsertInput = {
+  projectId: string;
   source: string;
   domain: string;
   title: string;
@@ -49,7 +50,8 @@ export type UpsertInput = {
 };
 
 /**
- * Upsert idempotent d'un document et de ses chunks.
+ * Upsert idempotent d'un document et de ses chunks, scopé au projet.
+ * - Dédup par (projectId, title) : deux tenants peuvent avoir un doc homonyme.
  * - Si un document de même hash existe → skip (rien n'a changé).
  * - Si le document existe avec un hash différent → purge + ré-insertion.
  */
@@ -57,7 +59,10 @@ export async function upsertDocument(
   doc: UpsertInput,
 ): Promise<"skipped" | "ingested"> {
   const existing = await db.query.documents.findFirst({
-    where: eq(documents.title, doc.title),
+    where: and(
+      eq(documents.projectId, doc.projectId),
+      eq(documents.title, doc.title),
+    ),
   });
 
   if (existing && existing.contentHash === doc.contentHash) {
@@ -73,6 +78,7 @@ export async function upsertDocument(
     const [inserted] = await tx
       .insert(documents)
       .values({
+        projectId: doc.projectId,
         source: doc.source,
         domain: doc.domain,
         title: doc.title,
@@ -83,6 +89,7 @@ export async function upsertDocument(
       .returning({ id: documents.id });
 
     const rows = doc.chunks.map((c, i) => ({
+      projectId: doc.projectId,
       documentId: inserted.id,
       chunkIndex: c.index,
       content: c.content,

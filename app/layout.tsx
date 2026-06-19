@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond } from "next/font/google";
+import { BrandingProvider } from "@/components/branding/BrandingProvider";
+import { brandingColorVars, getBranding } from "@/lib/tenant/branding";
+import { resolveProject } from "@/lib/tenant/resolve";
 import "./globals.css";
 
 const cormorant = Cormorant_Garamond({
@@ -9,34 +12,43 @@ const cormorant = Cormorant_Garamond({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "Ask By la Wine Tech",
-  description:
-    "Une IA Souveraine pour répondre à toutes les questions des vignerons.",
-  applicationName: "Ask By la Wine Tech",
-  appleWebApp: {
-    capable: true,
-    title: "Ask",
-    statusBarStyle: "default",
-  },
-  other: {
-    // Compatibilité iOS plus anciens (mode plein écran depuis l'écran d'accueil)
-    "apple-mobile-web-app-capable": "yes",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { name, description } = getBranding(await resolveProject());
+  return {
+    title: name,
+    description,
+    applicationName: name,
+    appleWebApp: { capable: true, title: name, statusBarStyle: "default" },
+    other: {
+      // Compatibilité iOS plus anciens (plein écran depuis l'écran d'accueil)
+      "apple-mobile-web-app-capable": "yes",
+    },
+  };
+}
 
-export const viewport: Viewport = {
-  themeColor: "#141934",
-};
+export async function generateViewport(): Promise<Viewport> {
+  const project = await resolveProject();
+  return { themeColor: project?.theme?.colors?.navy ?? "#141934" };
+}
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const project = await resolveProject();
+  const branding = getBranding(project);
+  const colorVars = brandingColorVars(project);
+
   return (
-    <html lang="fr" className={`${cormorant.variable} h-full antialiased`}>
-      <body className="min-h-full">{children}</body>
+    <html
+      lang="fr"
+      className={`${cormorant.variable} h-full antialiased`}
+      style={colorVars}
+    >
+      <body className="min-h-full">
+        <BrandingProvider value={branding}>{children}</BrandingProvider>
+      </body>
     </html>
   );
 }

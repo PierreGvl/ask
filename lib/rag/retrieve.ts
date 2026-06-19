@@ -32,8 +32,16 @@ function toVectorLiteral(values: number[]): string {
  */
 export async function retrieveChunks(
   query: string,
-  opts: { domain?: string; topK?: number; maxDistance?: number } = {},
+  opts: {
+    projectId: string;
+    domain?: string;
+    topK?: number;
+    maxDistance?: number;
+  },
 ): Promise<RetrievedChunk[]> {
+  // projectId est REQUIS et sans défaut : c'est la frontière d'isolation dure.
+  // Il provient toujours du contexte serveur résolu, jamais d'un argument du modèle.
+  const { projectId } = opts;
   const topK = opts.topK ?? env.RAG_TOP_K;
   const maxDistance = opts.maxDistance ?? env.RAG_MAX_DISTANCE;
   const domain = opts.domain ?? null;
@@ -61,7 +69,8 @@ export async function retrieveChunks(
              (embedding <=> ${vec}::vector) AS distance,
              row_number() OVER (ORDER BY embedding <=> ${vec}::vector) AS rnk
       FROM chunks
-      WHERE (${domain}::text IS NULL OR domain = ${domain})
+      WHERE project_id = ${projectId}
+        AND (${domain}::text IS NULL OR domain = ${domain})
       ORDER BY embedding <=> ${vec}::vector
       LIMIT ${candidates}
     ),
@@ -72,7 +81,8 @@ export async function retrieveChunks(
                                 plainto_tsquery('french', ${query})) DESC
              ) AS rnk
       FROM chunks
-      WHERE to_tsvector('french', content) @@ plainto_tsquery('french', ${query})
+      WHERE project_id = ${projectId}
+        AND to_tsvector('french', content) @@ plainto_tsquery('french', ${query})
         AND (${domain}::text IS NULL OR domain = ${domain})
       LIMIT ${candidates}
     )

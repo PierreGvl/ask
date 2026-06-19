@@ -2,7 +2,9 @@
  * Pipeline d'ingestion RAG (CLI).
  *
  * Usage :
- *   npm run ingest -- --path ./corpus [--source upload] [--domain reglementaire]
+ *   npm run ingest -- --project winetech --path ./corpus [--source upload] [--domain reglementaire]
+ *
+ * --project est le slug du projet (tenant) cible ; obligatoire en multi-tenant.
  *
  * Parcourt un dossier de fichiers (.pdf, .html, .txt, .md), les parse,
  * les découpe, calcule les embeddings Mistral et les upsert dans pgvector.
@@ -65,11 +67,31 @@ async function main() {
   const dir = resolve(args.path ?? "./corpus");
   const source = args.source ?? "upload";
   const domain = args.domain ?? "reglementaire";
+  const projectSlug = args.project;
+  if (!projectSlug) {
+    console.error(
+      "❌ --project <slug> est requis (tenant cible). Ex : --project winetech",
+    );
+    process.exit(1);
+  }
 
   // Imports différés (après chargement de .env, validé par lib/env).
   const { parseFile } = await import("./parse");
   const { chunkText } = await import("./chunk");
   const { upsertDocument } = await import("./embed-upsert");
+  const { eq } = await import("drizzle-orm");
+  const { db } = await import("@/lib/db");
+  const { projects } = await import("@/lib/db/schema");
+
+  const project = await db.query.projects.findFirst({
+    where: eq(projects.slug, projectSlug),
+    columns: { id: true, name: true },
+  });
+  if (!project) {
+    console.error(`❌ Projet introuvable pour le slug « ${projectSlug} ».`);
+    process.exit(1);
+  }
+  console.log(`Tenant : ${project.name} (${projectSlug})`);
 
   const files = await listFiles(dir);
   if (files.length === 0) {
@@ -93,6 +115,7 @@ async function main() {
     console.log(`  ${docChunks.length} chunk(s)`);
 
     const status = await upsertDocument({
+      projectId: project.id,
       source: meta.source ?? source,
       domain: meta.domain ?? domain,
       title: meta.title ?? parsedTitle,
@@ -108,6 +131,58 @@ async function main() {
       ingested++;
       console.log("  ✓ ingéré");
     }
+  }
+
+  // Met à jour la source de données du projet (panneau de pilotage console).
+  try {
+    const { and, count, eq: eqOp } = await import("drizzle-orm");
+    const { dataSources, documents } = await import("@/lib/db/schema");
+    const KIND: Record<string, string> = {
+      eurlex: "public_corpus",
+      legifrance: "public_corpus",
+      inao: "public_corpus",
+      upload: "upload",
+    };
+    const [{ n: docCount }] = await db
+      .select({ n: count() })
+      .from(documents)
+      .where(
+        and(
+          eqOp(documents.projectId, project.id),
+          eqOp(documents.domain, domain),
+        ),
+      );
+    const name = `${source} · ${domain}`;
+    const existing = await db.query.dataSources.findFirst({
+      where: and(
+        eqOp(dataSources.projectId, project.id),
+        eqOp(dataSources.name, name),
+      ),
+      columns: { id: true },
+    });
+    const values = {
+      status: "idle" as const,
+      docCount,
+      lastSyncedAt: new Date(),
+      lastError: null,
+      updatedAt: new Date(),
+    };
+    if (existing) {
+      await db
+        .update(dataSources)
+        .set(values)
+        .where(eqOp(dataSources.id, existing.id));
+    } else {
+      await db.insert(dataSources).values({
+        projectId: project.id,
+        kind: (KIND[source] ?? "upload") as never,
+        name,
+        domain,
+        ...values,
+      });
+    }
+  } catch (err) {
+    console.warn("  ⚠ statut data_sources non mis à jour :", err);
   }
 
   console.log(`\n✅ Terminé : ${ingested} ingéré(s), ${skipped} ignoré(s).`);

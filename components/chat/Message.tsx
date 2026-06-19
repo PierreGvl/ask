@@ -2,6 +2,7 @@ import { Search } from "lucide-react";
 import type { ChatUIMessage } from "@/lib/chat/types";
 import { cn } from "@/lib/utils";
 import { Citations } from "./Citations";
+import { DeclarationDownload } from "./DeclarationDownload";
 import { Markdown } from "./Markdown";
 
 function textOf(message: ChatUIMessage): string {
@@ -15,7 +16,7 @@ function textOf(message: ChatUIMessage): string {
 function isSearching(message: ChatUIMessage): boolean {
   return message.parts.some(
     (p) =>
-      p.type === "tool-search_regulation" &&
+      (p.type === "tool-search_documents" || p.type === "tool-web_search") &&
       "state" in p &&
       p.state !== "output-available" &&
       p.state !== "output-error",
@@ -32,6 +33,7 @@ export function Message({
   const isUser = message.role === "user";
   const text = textOf(message);
   const citations = message.metadata?.citations ?? [];
+  const declaration = message.metadata?.declaration;
   const searching = isSearching(message);
 
   if (isUser) {
@@ -56,6 +58,7 @@ export function Message({
         <div className={cn(streaming && !text && "streaming-cursor")}>
           {text && <Markdown>{text}</Markdown>}
         </div>
+        {declaration && <DeclarationDownload declaration={declaration} />}
         {citations.length > 0 && <Citations citations={citations} />}
       </div>
     </div>

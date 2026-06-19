@@ -1,4 +1,7 @@
+"use client";
+
 import Image from "next/image";
+import { useBranding } from "@/components/branding/BrandingProvider";
 import { cn } from "@/lib/utils";
 
 export function Logo({
@@ -10,11 +13,12 @@ export function Logo({
   withWordmark?: boolean;
   className?: string;
 }) {
+  const { logoUrl, name } = useBranding();
   return (
     <span className={cn("inline-flex items-center gap-2", className)}>
       <Image
-        src="/logo.png"
-        alt="Ask By la Wine Tech"
+        src={logoUrl}
+        alt={name}
         width={size}
         height={size}
         priority
@@ -22,7 +26,7 @@ export function Logo({
       />
       {withWordmark && (
         <span className="font-serif text-lg font-semibold leading-none text-navy">
-          Ask <span className="text-rose">By la Wine Tech</span>
+          {name}
         </span>
       )}
     </span>

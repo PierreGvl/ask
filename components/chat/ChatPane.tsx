@@ -17,11 +17,20 @@ export function ChatPane({
   initialMessages,
   isAuthenticated,
   isNew,
+  api = "/api/chat",
+  headers,
+  embedded = false,
 }: {
   chatId: string;
   initialMessages: ChatUIMessage[];
   isAuthenticated: boolean;
   isNew: boolean;
+  /** Endpoint de chat (le widget pointe vers /api/widget/chat). */
+  api?: string;
+  /** En-têtes additionnels (ex. clé API du widget). */
+  headers?: Record<string, string>;
+  /** Mode embarqué (iframe) : masque le bandeau invité / liens app. */
+  embedded?: boolean;
 }) {
   const router = useRouter();
   const navigatedRef = useRef(false);
@@ -32,7 +41,8 @@ export function ChatPane({
       id: chatId,
       messages: initialMessages,
       transport: new DefaultChatTransport({
-        api: "/api/chat",
+        api,
+        headers,
         prepareSendMessagesRequest: ({ messages, id }) => ({
           body: { messages, conversationId: id },
         }),
@@ -67,7 +77,7 @@ export function ChatPane({
 
   return (
     <div className="flex h-full flex-col">
-      {!isAuthenticated && (
+      {!isAuthenticated && !embedded && (
         <div className="bg-navy px-4 py-2 text-center text-sm text-white/85">
           Vous discutez en mode invité.{" "}
           <Link

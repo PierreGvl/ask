@@ -1,11 +1,12 @@
 "use client";
 
-import { SUGGESTIONS } from "@/lib/llm/prompts";
+import { useBranding } from "@/components/branding/BrandingProvider";
 
 export function Suggestions({ onPick }: { onPick: (text: string) => void }) {
+  const { suggestions } = useBranding();
   return (
     <div className="grid w-full max-w-3xl gap-2.5 sm:grid-cols-2">
-      {SUGGESTIONS.map((s) => (
+      {suggestions.map((s) => (
         <button
           key={s}
           type="button"

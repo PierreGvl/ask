@@ -1,15 +1,18 @@
 import type { MetadataRoute } from "next";
+import { getBranding } from "@/lib/tenant/branding";
+import { resolveProject } from "@/lib/tenant/resolve";
 
-export default function manifest(): MetadataRoute.Manifest {
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  const project = await resolveProject();
+  const { name, description } = getBranding(project);
   return {
-    name: "Ask By la Wine Tech",
+    name,
     short_name: "Ask",
-    description:
-      "Une IA Souveraine pour répondre à toutes les questions des vignerons.",
+    description,
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",
-    theme_color: "#141934",
+    theme_color: project?.theme?.colors?.navy ?? "#141934",
     lang: "fr",
     icons: [
       { src: "/icon-192.png", sizes: "192x192", type: "image/png" },

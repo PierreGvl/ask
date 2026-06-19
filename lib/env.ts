@@ -18,6 +18,27 @@ const envSchema = z.object({
   RAG_MAX_DISTANCE: z.coerce.number().default(0.7),
   RAG_TOP_K: z.coerce.number().int().positive().default(8),
 
+  // Multi-tenant : domaine racine pour le routing par sous-domaine
+  // (winetech.ask.fr → slug 'winetech'). Le slug par défaut sert au
+  // domaine apex, à www et au dev local.
+  APP_BASE_DOMAIN: z.string().default("ask.fr"),
+  DEFAULT_PROJECT_SLUG: z.string().default("winetech"),
+
+  // Recherche web de secours (souveraine EU). 'none' = désactivée globalement.
+  //  - 'brave'   : Brave Search API (BRAVE_API_KEY requis)
+  //  - 'searxng' : instance SearxNG auto-hébergée (SEARXNG_URL requis)
+  WEB_SEARCH_PROVIDER: z.enum(["none", "brave", "searxng"]).default("none"),
+  BRAVE_API_KEY: z.string().optional(),
+  SEARXNG_URL: z.string().url().optional(),
+
+  // Rate-limiting (requêtes par minute). 0 = désactivé.
+  WIDGET_RATE_LIMIT_PER_MIN: z.coerce.number().int().nonnegative().default(30),
+  GUEST_RATE_LIMIT_PER_MIN: z.coerce.number().int().nonnegative().default(20),
+
+  // Facturation Stripe (optionnel ; le webhook renvoie 501 si absent).
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+
   NODE_ENV: z
     .enum(["development", "production", "test"])
     .default("development"),

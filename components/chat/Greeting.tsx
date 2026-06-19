@@ -1,13 +1,16 @@
+"use client";
+
 import Image from "next/image";
-import { GREETING } from "@/lib/llm/prompts";
+import { useBranding } from "@/components/branding/BrandingProvider";
 
 export function Greeting() {
+  const { greeting, logoUrl, name } = useBranding();
   return (
     <div className="flex w-full max-w-3xl flex-col items-center gap-4 text-center">
       <div className="flex items-center justify-center gap-3">
         <Image
-          src="/logo.png"
-          alt="Ask By la Wine Tech"
+          src={logoUrl}
+          alt={name}
           width={120}
           height={120}
           priority
@@ -17,7 +20,7 @@ export function Greeting() {
           Bonjour&nbsp;!
         </h1>
       </div>
-      <p className="text-[0.95rem] leading-relaxed text-muted">{GREETING}</p>
+      <p className="text-[0.95rem] leading-relaxed text-muted">{greeting}</p>
     </div>
   );
 }

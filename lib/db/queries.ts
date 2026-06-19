@@ -8,7 +8,7 @@ import {
   type ToolCallTrace,
 } from "@/lib/db/schema";
 
-export async function listConversations(userId: string) {
+export async function listConversations(projectId: string, userId: string) {
   return db
     .select({
       id: conversations.id,
@@ -16,13 +16,26 @@ export async function listConversations(userId: string) {
       updatedAt: conversations.updatedAt,
     })
     .from(conversations)
-    .where(eq(conversations.userId, userId))
+    .where(
+      and(
+        eq(conversations.projectId, projectId),
+        eq(conversations.userId, userId),
+      ),
+    )
     .orderBy(desc(conversations.updatedAt));
 }
 
-export async function getConversation(id: string, userId: string) {
+export async function getConversation(
+  id: string,
+  projectId: string,
+  userId: string,
+) {
   return db.query.conversations.findFirst({
-    where: and(eq(conversations.id, id), eq(conversations.userId, userId)),
+    where: and(
+      eq(conversations.id, id),
+      eq(conversations.projectId, projectId),
+      eq(conversations.userId, userId),
+    ),
   });
 }
 
@@ -35,10 +48,14 @@ export async function getMessages(conversationId: string) {
 }
 
 /** Crée la conversation si elle n'existe pas encore (idempotent sur l'id). */
-export async function ensureConversation(id: string, userId: string) {
+export async function ensureConversation(
+  id: string,
+  projectId: string,
+  userId: string,
+) {
   await db
     .insert(conversations)
-    .values({ id, userId })
+    .values({ id, projectId, userId })
     .onConflictDoNothing({ target: conversations.id });
 }
 
@@ -72,8 +89,18 @@ export async function setConversationTitle(id: string, title: string) {
     .where(eq(conversations.id, id));
 }
 
-export async function deleteConversation(id: string, userId: string) {
+export async function deleteConversation(
+  id: string,
+  projectId: string,
+  userId: string,
+) {
   await db
     .delete(conversations)
-    .where(and(eq(conversations.id, id), eq(conversations.userId, userId)));
+    .where(
+      and(
+        eq(conversations.id, id),
+        eq(conversations.projectId, projectId),
+        eq(conversations.userId, userId),
+      ),
+    );
 }

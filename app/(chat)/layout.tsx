@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { ChatShell } from "@/components/sidebar/ChatShell";
 import { listConversations } from "@/lib/db/queries";
+import { resolveProject } from "@/lib/tenant/resolve";
 
 export default async function ChatLayout({
   children,
@@ -9,13 +10,15 @@ export default async function ChatLayout({
 }) {
   const session = await auth();
   const user = session?.user ?? null;
+  const project = await resolveProject();
 
-  const conversations = user?.id
-    ? (await listConversations(user.id)).map((c) => ({
-        id: c.id,
-        title: c.title,
-      }))
-    : [];
+  const conversations =
+    user?.id && project
+      ? (await listConversations(project.id, user.id)).map((c) => ({
+          id: c.id,
+          title: c.title,
+        }))
+      : [];
 
   return (
     <ChatShell
