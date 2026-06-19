@@ -1,30 +1,9 @@
-import type { CSSProperties } from "react";
-import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ConsoleSignOut } from "@/components/admin/ConsoleSignOut";
 import { requirePlatformAdmin } from "@/lib/admin/guard";
+import { CONSOLE_THEME, isConsoleHost } from "@/lib/console";
 import { env } from "@/lib/env";
-
-/**
- * Thème propre à la console : on surcharge les tokens de marque (navy/rose du
- * tenant) par une palette neutre/pro (slate + accent indigo) sur le conteneur
- * de la console. Les utilitaires Tailwind (text-navy, bg-rose-50…) lisant ces
- * variables, toute l'UI se recolore sans toucher chaque composant.
- */
-const CONSOLE_THEME = {
-  "--color-navy": "#0f172a",
-  "--color-navy-700": "#334155",
-  "--color-ink": "#0f172a",
-  "--color-rose": "#4f46e5",
-  "--color-rose-600": "#4338ca",
-  "--color-rose-700": "#3730a3",
-  "--color-rose-50": "#eef2ff",
-  "--color-rose-100": "#e0e7ff",
-  "--color-surface-2": "#f8fafc",
-  // Les titres de la console passent en sans (pas de serif Wine Tech).
-  "--font-serif": "var(--font-sans)",
-} as CSSProperties;
 
 export default async function AdminLayout({
   children,
@@ -33,11 +12,7 @@ export default async function AdminLayout({
 }) {
   // 1) Garde par hôte : si CONSOLE_HOST est défini, la console n'existe QUE là.
   //    Sur tout autre domaine (tenants), on masque son existence (404).
-  if (env.CONSOLE_HOST) {
-    const h = await headers();
-    const host = (h.get("host") ?? "").split(":")[0].toLowerCase();
-    if (host !== env.CONSOLE_HOST.split(":")[0].toLowerCase()) notFound();
-  }
+  if (env.CONSOLE_HOST && !(await isConsoleHost())) notFound();
 
   // 2) Garde par rôle : non connecté → login ; connecté non-admin → 404.
   try {

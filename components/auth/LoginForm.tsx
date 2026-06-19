@@ -7,7 +7,7 @@ import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 
-export function LoginForm() {
+export function LoginForm({ showRegister = true }: { showRegister?: boolean }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -55,12 +55,17 @@ export function LoginForm() {
       <Button type="submit" disabled={loading}>
         {loading ? "Connexion…" : "Se connecter"}
       </Button>
-      <p className="text-center text-sm text-muted">
-        Pas encore de compte ?{" "}
-        <Link href="/register" className="font-medium text-rose hover:underline">
-          Créer un compte
-        </Link>
-      </p>
+      {showRegister && (
+        <p className="text-center text-sm text-muted">
+          Pas encore de compte ?{" "}
+          <Link
+            href="/register"
+            className="font-medium text-rose hover:underline"
+          >
+            Créer un compte
+          </Link>
+        </p>
+      )}
     </form>
   );
 }
