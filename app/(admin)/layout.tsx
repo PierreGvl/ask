@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { ConsoleSignOut } from "@/components/admin/ConsoleSignOut";
 import { requirePlatformAdmin } from "@/lib/admin/guard";
 import { env } from "@/lib/env";
 
@@ -61,6 +62,7 @@ export default async function AdminLayout({
         <NavLink href="/admin">Tableau de bord</NavLink>
         <NavLink href="/admin/projects">Projets</NavLink>
         <NavLink href="/admin/users">Utilisateurs</NavLink>
+        <ConsoleSignOut />
       </aside>
       <main className="flex-1 p-6 sm:p-8">{children}</main>
     </div>
