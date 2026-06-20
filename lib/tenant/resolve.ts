@@ -69,7 +69,14 @@ async function loadProjectByHost(host: string | null): Promise<Project | null> {
 /** Projet courant résolu depuis le host, ou null si aucun ne correspond. */
 export const resolveProject = cache(async (): Promise<Project | null> => {
   const h = await headers();
-  return loadProjectByHost(h.get("host"));
+  try {
+    return await loadProjectByHost(h.get("host"));
+  } catch (err) {
+    // Base injoignable : on ne casse pas tout le rendu, on retombe sur le
+    // branding par défaut (null). Utile en prod (blip DB) et en dev sans base.
+    console.error("resolveProject: base injoignable, fallback défaut.", err);
+    return null;
+  }
 });
 
 /** Variante stricte : lève une erreur si le tenant est introuvable/suspendu. */

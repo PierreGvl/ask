@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { createApiKeyAction } from "@/app/(admin)/admin/actions";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Textarea } from "@/components/ui/Textarea";
 
 /**
  * Création de clé API widget. Le secret renvoyé n'est affiché qu'UNE fois
@@ -31,33 +34,28 @@ export function ApiKeyCreator({ projectId }: { projectId: string }) {
     <form onSubmit={submit} className="grid gap-3">
       <label className="flex flex-col gap-1 text-sm">
         <span className="text-faint">Nom de la clé</span>
-        <input
+        <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Site Prestashop"
-          className="rounded-lg border border-line px-3 py-2"
         />
       </label>
       <label className="flex flex-col gap-1 text-sm">
         <span className="text-faint">
           Origines autorisées (CORS, une par ligne ou séparées par virgule)
         </span>
-        <textarea
+        <Textarea
           value={origins}
           onChange={(e) => setOrigins(e.target.value)}
           placeholder="https://shop.acme.com"
           rows={2}
-          className="rounded-lg border border-line px-3 py-2 font-mono text-xs"
+          className="font-mono text-xs"
         />
       </label>
       <div>
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-pill bg-navy px-5 py-2 text-sm font-semibold text-white hover:bg-navy-700 disabled:opacity-50"
-        >
+        <Button type="submit" disabled={pending}>
           {pending ? "Génération…" : "Générer une clé"}
-        </button>
+        </Button>
       </div>
 
       {secret && (

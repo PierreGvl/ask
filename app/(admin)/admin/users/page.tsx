@@ -1,40 +1,43 @@
 import { toggleAdminAction } from "@/app/(admin)/admin/actions";
+import { Badge } from "@/components/ui/Badge";
+import { Card } from "@/components/ui/Card";
+import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/Table";
 import { listUsers } from "@/lib/admin/queries";
 
 export default async function UsersPage() {
   const users = await listUsers();
   return (
-    <div className="flex flex-col gap-6">
-      <h1 className="font-serif text-2xl font-semibold text-navy">
+    <div className="flex flex-col gap-5">
+      <h1 className="text-2xl font-semibold tracking-tight text-navy">
         Utilisateurs
       </h1>
-      <div className="overflow-hidden rounded-card border border-line bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-surface-2 text-left text-faint">
+      <Card>
+        <Table>
+          <THead>
             <tr>
-              <th className="px-4 py-2 font-medium">Email</th>
-              <th className="px-4 py-2 font-medium">Nom</th>
-              <th className="px-4 py-2 font-medium">Admin plateforme</th>
-              <th className="px-4 py-2 font-medium">Inscrit le</th>
-              <th className="px-4 py-2" />
+              <TH>Email</TH>
+              <TH>Nom</TH>
+              <TH>Admin plateforme</TH>
+              <TH>Inscrit le</TH>
+              <TH />
             </tr>
-          </thead>
-          <tbody>
+          </THead>
+          <TBody>
             {users.map((u) => (
-              <tr key={u.id} className="border-t border-line">
-                <td className="px-4 py-2">{u.email}</td>
-                <td className="px-4 py-2">{u.name ?? "—"}</td>
-                <td className="px-4 py-2">
+              <TR key={u.id}>
+                <TD className="font-medium text-navy-700">{u.email}</TD>
+                <TD>{u.name ?? "—"}</TD>
+                <TD>
                   {u.isPlatformAdmin ? (
-                    <span className="font-medium text-rose">oui</span>
+                    <Badge variant="accent">admin</Badge>
                   ) : (
-                    "non"
+                    <Badge>—</Badge>
                   )}
-                </td>
-                <td className="px-4 py-2 text-xs text-faint">
+                </TD>
+                <TD className="text-xs text-faint">
                   {new Date(u.createdAt).toLocaleDateString("fr-FR")}
-                </td>
-                <td className="px-4 py-2 text-right">
+                </TD>
+                <TD className="text-right">
                   <form action={toggleAdminAction} className="inline">
                     <input type="hidden" name="userId" value={u.id} />
                     <input
@@ -44,24 +47,24 @@ export default async function UsersPage() {
                     />
                     <button
                       type="submit"
-                      className="text-xs text-navy-700 hover:text-rose hover:underline"
+                      className="text-xs font-medium text-navy-700 hover:text-rose hover:underline"
                     >
                       {u.isPlatformAdmin ? "Retirer l'accès" : "Donner l'accès"}
                     </button>
                   </form>
-                </td>
-              </tr>
+                </TD>
+              </TR>
             ))}
             {users.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-faint">
+              <TR>
+                <TD colSpan={5} className="py-6 text-center text-faint">
                   Aucun utilisateur.
-                </td>
-              </tr>
+                </TD>
+              </TR>
             )}
-          </tbody>
-        </table>
-      </div>
+          </TBody>
+        </Table>
+      </Card>
     </div>
   );
 }

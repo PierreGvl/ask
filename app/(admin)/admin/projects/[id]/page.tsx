@@ -9,6 +9,13 @@ import {
   updateProjectAction,
 } from "@/app/(admin)/admin/actions";
 import { ApiKeyCreator } from "@/components/admin/ApiKeyCreator";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/Table";
+import { Textarea } from "@/components/ui/Textarea";
 import {
   getProjectById,
   listApiKeys,
@@ -24,20 +31,7 @@ const DATA_SOURCE_KINDS = [
   "web_search",
 ] as const;
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-card border border-line bg-white p-5">
-      <h2 className="mb-4 font-semibold text-navy">{title}</h2>
-      {children}
-    </section>
-  );
-}
+const TIER_BADGE = { free: "neutral", pro: "accent", domaine: "accent" } as const;
 
 function fmtDate(d: Date | null) {
   return d ? new Date(d).toLocaleString("fr-FR") : "—";
@@ -61,319 +55,314 @@ export default async function ProjectDetail({
   const colors = project.theme?.colors ?? {};
 
   return (
-    <div className="flex max-w-3xl flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-serif text-2xl font-semibold text-navy">
+    <div className="flex max-w-4xl flex-col gap-5">
+      {/* En-tête */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-1.5">
+          <h1 className="text-2xl font-semibold tracking-tight text-navy">
             {project.name}
           </h1>
-          <p className="font-mono text-xs text-faint">
-            {project.slug} · {stats.documents} docs · {stats.chunks} chunks
-          </p>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="font-mono text-faint">{project.slug}</span>
+            <Badge variant={TIER_BADGE[project.tier]}>{project.tier}</Badge>
+            <Badge variant={project.status === "active" ? "success" : "warning"}>
+              {project.status}
+            </Badge>
+            <span className="text-faint">
+              {stats.documents} docs · {stats.chunks} chunks
+            </span>
+          </div>
         </div>
         <form action={deleteProjectAction}>
           <input type="hidden" name="id" value={project.id} />
-          <button
-            type="submit"
-            className="rounded-pill border border-line px-4 py-1.5 text-sm text-faint hover:border-rose hover:text-rose"
-          >
+          <Button variant="outline" size="sm" type="submit">
             Supprimer
-          </button>
+          </Button>
         </form>
       </div>
 
-      <Section title="Licence (tier)">
-        <form action={setTierAction} className="flex items-end gap-3">
-          <input type="hidden" name="id" value={project.id} />
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-faint">Tier actuel : {project.tier}</span>
-            <select
-              name="tier"
-              defaultValue={project.tier}
-              className="rounded-lg border border-line px-3 py-2"
-            >
-              <option value="free">free</option>
-              <option value="pro">pro</option>
-              <option value="domaine">domaine</option>
-            </select>
-          </label>
-          <button
-            type="submit"
-            className="rounded-pill bg-navy px-4 py-2 text-sm font-semibold text-white hover:bg-navy-700"
+      {/* Licence */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Licence (tier)</CardTitle>
+        </CardHeader>
+        <CardBody>
+          <form action={setTierAction} className="flex flex-wrap items-end gap-3">
+            <input type="hidden" name="id" value={project.id} />
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-faint">Tier actuel : {project.tier}</span>
+              <Select name="tier" defaultValue={project.tier} className="w-40">
+                <option value="free">free</option>
+                <option value="pro">pro</option>
+                <option value="domaine">domaine</option>
+              </Select>
+            </label>
+            <Button type="submit" variant="outline">
+              Changer le tier
+            </Button>
+          </form>
+        </CardBody>
+      </Card>
+
+      {/* Identité & configuration */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Identité & configuration</CardTitle>
+        </CardHeader>
+        <CardBody>
+          <form
+            action={updateProjectAction}
+            className="grid gap-3 sm:grid-cols-2"
           >
-            Changer le tier
-          </button>
-        </form>
-      </Section>
+            <input type="hidden" name="id" value={project.id} />
+            <TextField name="name" label="Nom" defaultValue={project.name} />
+            <TextField name="slug" label="Slug" defaultValue={project.slug} />
+            <TextField
+              name="customDomain"
+              label="Domaine personnalisé"
+              defaultValue={project.customDomain ?? ""}
+            />
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-faint">Statut</span>
+              <Select name="status" defaultValue={project.status}>
+                <option value="active">active</option>
+                <option value="suspended">suspended</option>
+              </Select>
+            </label>
+            <TextField
+              name="color_navy"
+              label="Couleur principale (navy)"
+              defaultValue={colors.navy ?? ""}
+              placeholder="#141934"
+            />
+            <TextField
+              name="color_rose"
+              label="Couleur accent (rose)"
+              defaultValue={colors.rose ?? ""}
+              placeholder="#e33170"
+            />
+            <TextField
+              name="color_roseLight"
+              label="Fond clair (roseLight)"
+              defaultValue={colors.roseLight ?? ""}
+              placeholder="#fdeef4"
+            />
+            <TextField
+              name="logoUrl"
+              label="URL du logo"
+              defaultValue={project.theme?.logoUrl ?? ""}
+              placeholder="/logo.png"
+            />
+            <TextField
+              name="defaultDomain"
+              label="Sous-corpus par défaut"
+              defaultValue={cfg.defaultDomain ?? ""}
+              placeholder="reglementaire"
+            />
+            <AreaField
+              name="greeting"
+              label="Message d'accueil"
+              defaultValue={cfg.greeting ?? ""}
+            />
+            <AreaField
+              name="systemPrompt"
+              label="Prompt système (persona métier)"
+              defaultValue={cfg.systemPrompt ?? ""}
+              rows={5}
+              full
+            />
+            <AreaField
+              name="searchToolDescription"
+              label="Description de l'outil de recherche"
+              defaultValue={cfg.searchToolDescription ?? ""}
+              full
+            />
+            <AreaField
+              name="suggestions"
+              label="Suggestions (une par ligne)"
+              defaultValue={(cfg.suggestions ?? []).join("\n")}
+              rows={4}
+              full
+            />
+            <div className="sm:col-span-2">
+              <Button type="submit">Enregistrer</Button>
+            </div>
+          </form>
+        </CardBody>
+      </Card>
 
-      <Section title="Identité & configuration">
-        <form action={updateProjectAction} className="grid gap-3 sm:grid-cols-2">
-          <input type="hidden" name="id" value={project.id} />
-          <Input name="name" label="Nom" defaultValue={project.name} />
-          <Input name="slug" label="Slug" defaultValue={project.slug} />
-          <Input
-            name="customDomain"
-            label="Domaine personnalisé"
-            defaultValue={project.customDomain ?? ""}
-          />
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-faint">Statut</span>
-            <select
-              name="status"
-              defaultValue={project.status}
-              className="rounded-lg border border-line px-3 py-2"
-            >
-              <option value="active">active</option>
-              <option value="suspended">suspended</option>
-            </select>
-          </label>
-          <Input
-            name="color_navy"
-            label="Couleur principale (navy)"
-            defaultValue={colors.navy ?? ""}
-            placeholder="#141934"
-          />
-          <Input
-            name="color_rose"
-            label="Couleur accent (rose)"
-            defaultValue={colors.rose ?? ""}
-            placeholder="#e33170"
-          />
-          <Input
-            name="color_roseLight"
-            label="Fond clair (roseLight)"
-            defaultValue={colors.roseLight ?? ""}
-            placeholder="#fdeef4"
-          />
-          <Input
-            name="logoUrl"
-            label="URL du logo"
-            defaultValue={project.theme?.logoUrl ?? ""}
-            placeholder="/logo.png"
-          />
-          <Input
-            name="defaultDomain"
-            label="Sous-corpus par défaut"
-            defaultValue={cfg.defaultDomain ?? ""}
-            placeholder="reglementaire"
-          />
-          <Textarea
-            name="greeting"
-            label="Message d'accueil"
-            defaultValue={cfg.greeting ?? ""}
-          />
-          <Textarea
-            name="systemPrompt"
-            label="Prompt système (persona métier)"
-            defaultValue={cfg.systemPrompt ?? ""}
-            rows={5}
-            full
-          />
-          <Textarea
-            name="searchToolDescription"
-            label="Description de l'outil de recherche"
-            defaultValue={cfg.searchToolDescription ?? ""}
-            full
-          />
-          <Textarea
-            name="suggestions"
-            label="Suggestions (une par ligne)"
-            defaultValue={(cfg.suggestions ?? []).join("\n")}
-            rows={4}
-            full
-          />
-          <div className="sm:col-span-2">
-            <button
-              type="submit"
-              className="rounded-pill bg-rose px-5 py-2 text-sm font-semibold text-white hover:bg-rose-600"
-            >
-              Enregistrer
-            </button>
-          </div>
-        </form>
-      </Section>
-
-      <Section title="Sources de données">
-        <table className="mb-4 w-full text-sm">
-          <thead className="text-left text-faint">
-            <tr>
-              <th className="py-1 font-medium">Nom</th>
-              <th className="py-1 font-medium">Type</th>
-              <th className="py-1 font-medium">Statut</th>
-              <th className="py-1 font-medium">Docs</th>
-              <th className="py-1 font-medium">Dernière sync</th>
-              <th className="py-1" />
-            </tr>
-          </thead>
-          <tbody>
-            {sources.map((s) => (
-              <tr key={s.id} className="border-t border-line">
-                <td className="py-2">{s.name}</td>
-                <td className="py-2 font-mono text-xs">{s.kind}</td>
-                <td className="py-2">
-                  <StatusBadge status={s.status} />
-                </td>
-                <td className="py-2">{s.docCount}</td>
-                <td className="py-2 text-xs text-faint">
-                  {fmtDate(s.lastSyncedAt)}
-                </td>
-                <td className="py-2 text-right">
-                  <form
-                    action={resyncDataSourceAction}
-                    className="inline"
-                  >
-                    <input type="hidden" name="id" value={s.id} />
-                    <input
-                      type="hidden"
-                      name="projectId"
-                      value={project.id}
-                    />
-                    <button
-                      type="submit"
-                      className="mr-2 text-xs text-navy-700 hover:text-rose hover:underline"
-                    >
-                      Re-sync
-                    </button>
-                  </form>
-                  <form action={deleteDataSourceAction} className="inline">
-                    <input type="hidden" name="id" value={s.id} />
-                    <input
-                      type="hidden"
-                      name="projectId"
-                      value={project.id}
-                    />
-                    <button
-                      type="submit"
-                      className="text-xs text-faint hover:text-rose"
-                    >
-                      Suppr.
-                    </button>
-                  </form>
-                </td>
-              </tr>
-            ))}
-            {sources.length === 0 && (
+      {/* Sources de données */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Sources de données</CardTitle>
+        </CardHeader>
+        <CardBody className="flex flex-col gap-4">
+          <Table>
+            <THead>
               <tr>
-                <td colSpan={6} className="py-4 text-center text-faint">
-                  Aucune source.
-                </td>
+                <TH>Nom</TH>
+                <TH>Type</TH>
+                <TH>Statut</TH>
+                <TH>Docs</TH>
+                <TH>Dernière sync</TH>
+                <TH />
               </tr>
-            )}
-          </tbody>
-        </table>
-
-        <form
-          action={createDataSourceAction}
-          className="grid gap-3 sm:grid-cols-3"
-        >
-          <input type="hidden" name="projectId" value={project.id} />
-          <Input name="name" label="Nom" placeholder="Catalogue produits" />
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-faint">Type</span>
-            <select
-              name="kind"
-              className="rounded-lg border border-line px-3 py-2"
-            >
-              {DATA_SOURCE_KINDS.map((k) => (
-                <option key={k} value={k}>
-                  {k}
-                </option>
-              ))}
-            </select>
-          </label>
-          <Input name="domain" label="Sous-corpus" placeholder="catalogue" />
-          <div className="sm:col-span-3">
-            <button
-              type="submit"
-              className="rounded-pill border border-line px-4 py-2 text-sm font-semibold text-navy-700 hover:border-rose hover:text-rose"
-            >
-              Ajouter une source
-            </button>
-          </div>
-        </form>
-        <p className="mt-2 text-xs text-faint">
-          « Re-sync » marque la source à resynchroniser (statut{" "}
-          <em>syncing</em>) ; l&apos;ingestion réelle est exécutée par le pipeline
-          (`npm run ingest -- --project {project.slug}`).
-        </p>
-      </Section>
-
-      <Section title="Clés API (widget)">
-        <table className="mb-4 w-full text-sm">
-          <thead className="text-left text-faint">
-            <tr>
-              <th className="py-1 font-medium">Nom</th>
-              <th className="py-1 font-medium">Préfixe</th>
-              <th className="py-1 font-medium">Origines</th>
-              <th className="py-1 font-medium">État</th>
-              <th className="py-1" />
-            </tr>
-          </thead>
-          <tbody>
-            {apiKeys.map((k) => (
-              <tr key={k.id} className="border-t border-line">
-                <td className="py-2">{k.name}</td>
-                <td className="py-2 font-mono text-xs">{k.prefix}…</td>
-                <td className="py-2 text-xs text-faint">
-                  {(k.allowedOrigins ?? []).join(", ") || "—"}
-                </td>
-                <td className="py-2">
-                  {k.revokedAt ? (
-                    <span className="text-faint">révoquée</span>
-                  ) : (
-                    <span className="text-rose">active</span>
-                  )}
-                </td>
-                <td className="py-2 text-right">
-                  {!k.revokedAt && (
-                    <form action={revokeApiKeyAction} className="inline">
-                      <input type="hidden" name="id" value={k.id} />
-                      <input
-                        type="hidden"
-                        name="projectId"
-                        value={project.id}
-                      />
+            </THead>
+            <TBody>
+              {sources.map((s) => (
+                <TR key={s.id}>
+                  <TD className="font-medium text-navy-700">{s.name}</TD>
+                  <TD className="font-mono text-xs">{s.kind}</TD>
+                  <TD>
+                    <Badge
+                      variant={
+                        s.status === "error"
+                          ? "danger"
+                          : s.status === "syncing"
+                            ? "accent"
+                            : "neutral"
+                      }
+                    >
+                      {s.status}
+                    </Badge>
+                  </TD>
+                  <TD>{s.docCount}</TD>
+                  <TD className="text-xs text-faint">{fmtDate(s.lastSyncedAt)}</TD>
+                  <TD className="whitespace-nowrap text-right">
+                    <form action={resyncDataSourceAction} className="inline">
+                      <input type="hidden" name="id" value={s.id} />
+                      <input type="hidden" name="projectId" value={project.id} />
+                      <button
+                        type="submit"
+                        className="mr-3 text-xs font-medium text-navy-700 hover:text-rose hover:underline"
+                      >
+                        Re-sync
+                      </button>
+                    </form>
+                    <form action={deleteDataSourceAction} className="inline">
+                      <input type="hidden" name="id" value={s.id} />
+                      <input type="hidden" name="projectId" value={project.id} />
                       <button
                         type="submit"
                         className="text-xs text-faint hover:text-rose"
                       >
-                        Révoquer
+                        Suppr.
                       </button>
                     </form>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {apiKeys.length === 0 && (
+                  </TD>
+                </TR>
+              ))}
+              {sources.length === 0 && (
+                <TR>
+                  <TD colSpan={6} className="py-5 text-center text-faint">
+                    Aucune source.
+                  </TD>
+                </TR>
+              )}
+            </TBody>
+          </Table>
+
+          <form
+            action={createDataSourceAction}
+            className="grid gap-3 border-t border-line pt-4 sm:grid-cols-3"
+          >
+            <input type="hidden" name="projectId" value={project.id} />
+            <TextField name="name" label="Nom" placeholder="Catalogue produits" />
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-faint">Type</span>
+              <Select name="kind">
+                {DATA_SOURCE_KINDS.map((k) => (
+                  <option key={k} value={k}>
+                    {k}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <TextField name="domain" label="Sous-corpus" placeholder="catalogue" />
+            <div className="sm:col-span-3">
+              <Button type="submit" variant="outline">
+                Ajouter une source
+              </Button>
+            </div>
+          </form>
+          <p className="text-xs text-faint">
+            « Re-sync » marque la source à resynchroniser (statut <em>syncing</em>)
+            ; l&apos;ingestion réelle est exécutée par le pipeline (`npm run
+            ingest -- --project {project.slug}`).
+          </p>
+        </CardBody>
+      </Card>
+
+      {/* Clés API */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Clés API (widget)</CardTitle>
+        </CardHeader>
+        <CardBody className="flex flex-col gap-4">
+          <Table>
+            <THead>
               <tr>
-                <td colSpan={5} className="py-4 text-center text-faint">
-                  Aucune clé.
-                </td>
+                <TH>Nom</TH>
+                <TH>Préfixe</TH>
+                <TH>Origines</TH>
+                <TH>État</TH>
+                <TH />
               </tr>
-            )}
-          </tbody>
-        </table>
-        <ApiKeyCreator projectId={project.id} />
-      </Section>
+            </THead>
+            <TBody>
+              {apiKeys.map((k) => (
+                <TR key={k.id}>
+                  <TD className="font-medium text-navy-700">{k.name}</TD>
+                  <TD className="font-mono text-xs">{k.prefix}…</TD>
+                  <TD className="text-xs text-faint">
+                    {(k.allowedOrigins ?? []).join(", ") || "—"}
+                  </TD>
+                  <TD>
+                    {k.revokedAt ? (
+                      <Badge>révoquée</Badge>
+                    ) : (
+                      <Badge variant="success">active</Badge>
+                    )}
+                  </TD>
+                  <TD className="text-right">
+                    {!k.revokedAt && (
+                      <form action={revokeApiKeyAction} className="inline">
+                        <input type="hidden" name="id" value={k.id} />
+                        <input
+                          type="hidden"
+                          name="projectId"
+                          value={project.id}
+                        />
+                        <button
+                          type="submit"
+                          className="text-xs text-faint hover:text-rose"
+                        >
+                          Révoquer
+                        </button>
+                      </form>
+                    )}
+                  </TD>
+                </TR>
+              ))}
+              {apiKeys.length === 0 && (
+                <TR>
+                  <TD colSpan={5} className="py-5 text-center text-faint">
+                    Aucune clé.
+                  </TD>
+                </TR>
+              )}
+            </TBody>
+          </Table>
+          <div className="border-t border-line pt-4">
+            <ApiKeyCreator projectId={project.id} />
+          </div>
+        </CardBody>
+      </Card>
     </div>
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const cls =
-    status === "error"
-      ? "bg-rose-100 text-rose-700"
-      : status === "syncing"
-        ? "bg-rose-50 text-rose"
-        : "bg-surface-2 text-faint";
-  return (
-    <span className={`rounded-pill px-2 py-0.5 text-xs font-medium ${cls}`}>
-      {status}
-    </span>
-  );
-}
-
-function Input({
+function TextField({
   name,
   label,
   defaultValue,
@@ -387,17 +376,12 @@ function Input({
   return (
     <label className="flex flex-col gap-1 text-sm">
       <span className="text-faint">{label}</span>
-      <input
-        name={name}
-        defaultValue={defaultValue}
-        placeholder={placeholder}
-        className="rounded-lg border border-line px-3 py-2"
-      />
+      <Input name={name} defaultValue={defaultValue} placeholder={placeholder} />
     </label>
   );
 }
 
-function Textarea({
+function AreaField({
   name,
   label,
   defaultValue,
@@ -415,12 +399,7 @@ function Textarea({
       className={`flex flex-col gap-1 text-sm ${full ? "sm:col-span-2" : ""}`}
     >
       <span className="text-faint">{label}</span>
-      <textarea
-        name={name}
-        defaultValue={defaultValue}
-        rows={rows}
-        className="rounded-lg border border-line px-3 py-2"
-      />
+      <Textarea name={name} defaultValue={defaultValue} rows={rows} />
     </label>
   );
 }
