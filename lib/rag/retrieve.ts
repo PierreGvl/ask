@@ -34,6 +34,8 @@ export async function retrieveChunks(
   query: string,
   opts: {
     projectId: string;
+    /** Sources de corpus partagées lues EN PLUS du projet (cf. corpus-sources). */
+    sharedProjectIds?: string[];
     domain?: string;
     topK?: number;
     maxDistance?: number;
@@ -41,7 +43,14 @@ export async function retrieveChunks(
 ): Promise<RetrievedChunk[]> {
   // projectId est REQUIS et sans défaut : c'est la frontière d'isolation dure.
   // Il provient toujours du contexte serveur résolu, jamais d'un argument du modèle.
+  // Les sources partagées (réglées par le platform-admin) élargissent la lecture
+  // de façon explicite et unidirectionnelle.
   const { projectId } = opts;
+  const projectIds = [projectId, ...(opts.sharedProjectIds ?? [])];
+  // Littéral tableau Postgres ('{uuid1,uuid2}') passé en UN seul paramètre :
+  // drizzle développerait un tableau JS en liste de params (record), ce qui
+  // casse le cast ::uuid[]. Les IDs proviennent de la base (sûrs).
+  const projectIdsLiteral = `{${projectIds.join(",")}}`;
   const topK = opts.topK ?? env.RAG_TOP_K;
   const maxDistance = opts.maxDistance ?? env.RAG_MAX_DISTANCE;
   const domain = opts.domain ?? null;
@@ -69,7 +78,7 @@ export async function retrieveChunks(
              (embedding <=> ${vec}::vector) AS distance,
              row_number() OVER (ORDER BY embedding <=> ${vec}::vector) AS rnk
       FROM chunks
-      WHERE project_id = ${projectId}
+      WHERE project_id = ANY(${projectIdsLiteral}::uuid[])
         AND (${domain}::text IS NULL OR domain = ${domain})
       ORDER BY embedding <=> ${vec}::vector
       LIMIT ${candidates}
@@ -81,7 +90,7 @@ export async function retrieveChunks(
                                 plainto_tsquery('french', ${query})) DESC
              ) AS rnk
       FROM chunks
-      WHERE project_id = ${projectId}
+      WHERE project_id = ANY(${projectIdsLiteral}::uuid[])
         AND to_tsvector('french', content) @@ plainto_tsquery('french', ${query})
         AND (${domain}::text IS NULL OR domain = ${domain})
       LIMIT ${candidates}

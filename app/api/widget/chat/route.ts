@@ -60,7 +60,7 @@ export async function POST(req: Request) {
   const seenSources = new Set<string>();
   const declarations: DeclarationData[] = [];
 
-  const result = createChatStream({
+  const result = await createChatStream({
     project: auth.project,
     modelMessages: await convertToModelMessages(messages),
     collected,

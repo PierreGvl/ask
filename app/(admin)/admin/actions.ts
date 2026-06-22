@@ -131,6 +131,21 @@ export async function revokeApiKeyAction(formData: FormData) {
   revalidatePath(`/admin/projects/${str(formData.get("projectId"))}`);
 }
 
+export async function addCorpusSourceAction(formData: FormData) {
+  await requirePlatformAdmin();
+  const projectId = str(formData.get("projectId"));
+  const sourceProjectId = str(formData.get("sourceProjectId"));
+  if (sourceProjectId) await q.addCorpusSource(projectId, sourceProjectId);
+  revalidatePath(`/admin/projects/${projectId}`);
+}
+
+export async function removeCorpusSourceAction(formData: FormData) {
+  await requirePlatformAdmin();
+  const projectId = str(formData.get("projectId"));
+  await q.removeCorpusSource(projectId, str(formData.get("sourceProjectId")));
+  revalidatePath(`/admin/projects/${projectId}`);
+}
+
 /** Crée une clé API et RENVOIE le secret en clair (affiché une seule fois). */
 export async function createApiKeyAction(
   projectId: string,

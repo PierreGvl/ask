@@ -9,6 +9,7 @@ import { resolveFeatures } from "@/lib/features/tiers";
 import type { Citation, Project, ToolCallTrace } from "@/lib/db/schema";
 import { chatModel } from "@/lib/llm/models";
 import { buildSystemPrompt } from "@/lib/llm/prompts";
+import { getCorpusSourceIds } from "@/lib/rag/corpus-sources";
 import { buildTools, type SearchOutput } from "@/lib/rag/tools";
 import { isWebSearchConfigured } from "@/lib/rag/web-search";
 import type { DeclarationData } from "@/lib/pdf/types";
@@ -20,7 +21,7 @@ import type { DeclarationData } from "@/lib/pdf/types";
  *
  * La persistance (historique) reste à la charge de l'appelant via `onFinish`.
  */
-export function createChatStream(opts: {
+export async function createChatStream(opts: {
   project: Project;
   modelMessages: ModelMessage[];
   collected: Citation[];
@@ -35,9 +36,16 @@ export function createChatStream(opts: {
   const webEnabled = features.webSearch && isWebSearchConfigured();
   const pdfEnabled = features.pdfGeneration;
 
+  // Corpus partagés (lecture cross-projet). Quand il y en a, on ne force pas le
+  // sous-corpus par défaut : les sources vivent sous d'autres domaines.
+  const sharedProjectIds = await getCorpusSourceIds(project.id);
+
   const tools: ToolSet = buildTools({
     projectId: project.id,
-    defaultDomain: project.config?.defaultDomain,
+    sharedProjectIds,
+    defaultDomain: sharedProjectIds.length
+      ? undefined
+      : project.config?.defaultDomain,
     features,
     searchToolDescription: project.config?.searchToolDescription,
   });

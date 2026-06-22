@@ -1,5 +1,5 @@
 import "server-only";
-import { count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   apiKeys,
@@ -9,6 +9,7 @@ import {
   documents,
   type LicenseTier,
   type ProjectConfig,
+  projectCorpusSources,
   type ProjectTheme,
   projects,
   subscriptions,
@@ -222,4 +223,41 @@ export async function revokeApiKey(id: string) {
     .update(apiKeys)
     .set({ revokedAt: new Date() })
     .where(eq(apiKeys.id, id));
+}
+
+// --- Sources de corpus partagées ---
+
+export function listCorpusSources(projectId: string) {
+  return db
+    .select({
+      sourceProjectId: projectCorpusSources.sourceProjectId,
+      name: projects.name,
+      slug: projects.slug,
+    })
+    .from(projectCorpusSources)
+    .innerJoin(projects, eq(projects.id, projectCorpusSources.sourceProjectId))
+    .where(eq(projectCorpusSources.projectId, projectId))
+    .orderBy(projects.name);
+}
+
+export async function addCorpusSource(projectId: string, sourceProjectId: string) {
+  if (projectId === sourceProjectId) return; // pas d'auto-référence
+  await db
+    .insert(projectCorpusSources)
+    .values({ projectId, sourceProjectId })
+    .onConflictDoNothing();
+}
+
+export async function removeCorpusSource(
+  projectId: string,
+  sourceProjectId: string,
+) {
+  await db
+    .delete(projectCorpusSources)
+    .where(
+      and(
+        eq(projectCorpusSources.projectId, projectId),
+        eq(projectCorpusSources.sourceProjectId, sourceProjectId),
+      ),
+    );
 }

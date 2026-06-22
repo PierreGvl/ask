@@ -29,6 +29,8 @@ const DEFAULT_SEARCH_DESCRIPTION =
  */
 export function buildTools(opts: {
   projectId: string;
+  /** Corpus partagés lus en plus de celui du projet. */
+  sharedProjectIds?: string[];
   defaultDomain?: string;
   features: ProjectFeatures;
   searchToolDescription?: string;
@@ -49,6 +51,7 @@ export function buildTools(opts: {
     execute: async ({ query, domain }): Promise<SearchOutput> => {
       const chunks = await retrieveChunks(query, {
         projectId: opts.projectId,
+        sharedProjectIds: opts.sharedProjectIds,
         domain: domain ?? opts.defaultDomain,
       });
       const { contextText, citations } = assembleContext(chunks);

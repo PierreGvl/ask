@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import {
+  addCorpusSourceAction,
   createDataSourceAction,
   deleteDataSourceAction,
   deleteProjectAction,
+  removeCorpusSourceAction,
   resyncDataSourceAction,
   revokeApiKeyAction,
   setTierAction,
@@ -21,7 +23,9 @@ import { Textarea } from "@/components/ui/Textarea";
 import {
   getProjectById,
   listApiKeys,
+  listCorpusSources,
   listDataSources,
+  listProjects,
   projectStats,
 } from "@/lib/admin/queries";
 import {
@@ -52,15 +56,30 @@ export default async function ProjectDetail({
   const project = await getProjectById(id);
   if (!project) notFound();
 
-  const [sources, apiKeys, stats, members, invitations, session] =
-    await Promise.all([
-      listDataSources(id),
-      listApiKeys(id),
-      projectStats(id),
-      listProjectMembers(id),
-      listPendingInvitations(id),
-      auth(),
-    ]);
+  const [
+    sources,
+    apiKeys,
+    stats,
+    members,
+    invitations,
+    corpusSources,
+    allProjects,
+    session,
+  ] = await Promise.all([
+    listDataSources(id),
+    listApiKeys(id),
+    projectStats(id),
+    listProjectMembers(id),
+    listPendingInvitations(id),
+    listCorpusSources(id),
+    listProjects(),
+    auth(),
+  ]);
+  // Candidats au partage : tout autre projet pas déjà lié.
+  const linkedIds = new Set(corpusSources.map((s) => s.sourceProjectId));
+  const candidateSources = allProjects.filter(
+    (p) => p.id !== id && !linkedIds.has(p.id),
+  );
   const cfg = project.config ?? {};
   const colors = project.theme?.colors ?? {};
 
@@ -312,6 +331,81 @@ export default async function ProjectDetail({
             ; l&apos;ingestion réelle est exécutée par le pipeline (`npm run
             ingest -- --project {project.slug}`).
           </p>
+        </CardBody>
+      </Card>
+
+      {/* Sources de corpus partagées */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Sources de corpus partagées</CardTitle>
+        </CardHeader>
+        <CardBody className="flex flex-col gap-4">
+          <p className="text-xs text-faint">
+            Ce projet lit, en plus du sien, le corpus des projets ci-dessous
+            (lecture seule, unidirectionnelle). Ex. : un négociant vin lit le
+            corpus réglementaire public de Wine Tech.
+          </p>
+          <Table>
+            <THead>
+              <tr>
+                <TH>Projet source</TH>
+                <TH>Slug</TH>
+                <TH />
+              </tr>
+            </THead>
+            <TBody>
+              {corpusSources.map((s) => (
+                <TR key={s.sourceProjectId}>
+                  <TD className="font-medium text-navy-700">{s.name}</TD>
+                  <TD className="font-mono text-xs text-faint">{s.slug}</TD>
+                  <TD className="text-right">
+                    <form action={removeCorpusSourceAction} className="inline">
+                      <input type="hidden" name="projectId" value={project.id} />
+                      <input
+                        type="hidden"
+                        name="sourceProjectId"
+                        value={s.sourceProjectId}
+                      />
+                      <button
+                        type="submit"
+                        className="text-xs text-faint hover:text-rose"
+                      >
+                        Retirer
+                      </button>
+                    </form>
+                  </TD>
+                </TR>
+              ))}
+              {corpusSources.length === 0 && (
+                <TR>
+                  <TD colSpan={3} className="py-5 text-center text-faint">
+                    Aucune source partagée.
+                  </TD>
+                </TR>
+              )}
+            </TBody>
+          </Table>
+          {candidateSources.length > 0 && (
+            <form
+              action={addCorpusSourceAction}
+              className="flex flex-wrap items-end gap-3 border-t border-line pt-4"
+            >
+              <input type="hidden" name="projectId" value={project.id} />
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-faint">Ajouter une source</span>
+                <Select name="sourceProjectId" className="w-56">
+                  {candidateSources.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} ({p.slug})
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <Button type="submit" variant="outline">
+                Partager le corpus
+              </Button>
+            </form>
+          )}
         </CardBody>
       </Card>
 

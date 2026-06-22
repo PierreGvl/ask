@@ -97,7 +97,7 @@ export async function POST(req: Request) {
     });
   }
 
-  const result = createChatStream({
+  const result = await createChatStream({
     project,
     modelMessages: await convertToModelMessages(messages),
     collected,

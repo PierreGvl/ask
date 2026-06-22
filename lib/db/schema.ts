@@ -160,6 +160,26 @@ export const projectInvitations = pgTable(
   ],
 );
 
+// --- Sources de corpus partagées (lecture cross-projet, explicite & unidirectionnelle) ---
+// Un projet `projectId` peut lire EN PLUS du sien le corpus de `sourceProjectId`
+// (ex. HervAI lit le corpus public réglementaire de Wine Tech). Configuré par le
+// platform-admin uniquement ; ne donne JAMAIS l'accès inverse.
+export const projectCorpusSources = pgTable(
+  "project_corpus_sources",
+  {
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    sourceProjectId: uuid("source_project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.projectId, t.sourceProjectId] })],
+);
+
 // --- Abonnements (source de vérité du tier ; projects.tier en est le cache) ---
 export const subscriptions = pgTable(
   "subscriptions",
@@ -362,6 +382,7 @@ export type Project = typeof projects.$inferSelect;
 export type ProjectUser = typeof projectUsers.$inferSelect;
 export type ProjectRole = ProjectUser["role"];
 export type ProjectInvitation = typeof projectInvitations.$inferSelect;
+export type ProjectCorpusSource = typeof projectCorpusSources.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type DataSource = typeof dataSources.$inferSelect;
 export type ApiKey = typeof apiKeys.$inferSelect;
