@@ -14,6 +14,7 @@
     "ingest": "tsx scripts/ingest/index.ts",
     "seed:projects": "tsx scripts/seed-projects.ts",
     "seed:hervai": "tsx scripts/seed-hervai.ts",
+    "seed:shared-corpus": "tsx scripts/seed-shared-corpus.ts",
     "admin:grant": "tsx scripts/grant-admin.ts",
     "check:isolation": "tsx scripts/check-isolation.ts",
     "llm:smoke": "tsx scripts/smoke-llm.ts"
