@@ -48,23 +48,66 @@ export function getBranding(project: Project | null): Branding {
   };
 }
 
+function hexToRgb(hex: string): [number, number, number] | null {
+  const m = /^#?([0-9a-fA-F]{6})$/.exec(hex.trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  const h = (v: number) =>
+    Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0");
+  return `#${h(r)}${h(g)}${h(b)}`;
+}
+
+/** Mélange une couleur vers une cible (0 = noir, 255 = blanc) d'un facteur t. */
+function mix(hex: string, target: number, t: number): string {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  return rgbToHex(...(rgb.map((c) => c + (target - c) * t) as [
+    number,
+    number,
+    number,
+  ]));
+}
+const darken = (hex: string, t: number) => mix(hex, 0, t);
+const lighten = (hex: string, t: number) => mix(hex, 255, t);
+
 /**
  * Variables CSS de couleur à poser en inline sur <html> pour surcharger les
- * tokens Tailwind (@theme) par tenant. Le style inline gagne sur les règles
- * :root de la feuille de styles, donc recolore toute l'UI d'un coup.
+ * tokens Tailwind (@theme) par tenant. À partir des 3 couleurs de marque
+ * (navy/rose/roseLight) on DÉRIVE toute l'échelle (700/600/100…) pour qu'aucun
+ * token Wine Tech par défaut ne « bave » sur un autre tenant.
  */
 export function brandingColorVars(project: Project | null): CSSProperties {
   const colors = project?.theme?.colors;
   if (!colors) return {};
-  const map: Record<string, string> = {
-    navy: "--color-navy",
-    rose: "--color-rose",
-    roseLight: "--color-rose-50",
-  };
   const vars: Record<string, string> = {};
+  const set = (k: string, v?: string) => {
+    if (v) vars[k] = v;
+  };
+
+  const { navy, rose, roseLight } = colors;
+  if (navy) {
+    set("--color-navy", navy);
+    set("--color-ink", navy);
+    set("--color-navy-700", lighten(navy, 0.18));
+  }
+  if (rose) {
+    set("--color-rose", rose);
+    set("--color-rose-600", darken(rose, 0.12));
+    set("--color-rose-700", darken(rose, 0.24));
+  }
+  if (roseLight) {
+    set("--color-rose-50", roseLight);
+    set("--color-rose-100", darken(roseLight, 0.06));
+  }
+  // Clés additionnelles éventuelles → passe-through.
   for (const [key, value] of Object.entries(colors)) {
-    const cssVar = map[key] ?? `--color-${key}`;
-    vars[cssVar] = value;
+    if (key !== "navy" && key !== "rose" && key !== "roseLight") {
+      set(`--color-${key}`, value);
+    }
   }
   return vars as CSSProperties;
 }

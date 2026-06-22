@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Logo } from "@/components/ui/Logo";
+import { Wordmark } from "@/components/ui/Wordmark";
 import { CONSOLE_THEME, isConsoleHost } from "@/lib/console";
 
 export default async function AuthLayout({
@@ -22,8 +22,8 @@ export default async function AuthLayout({
           Console
         </div>
       ) : (
-        <Link href="/" className="mb-8">
-          <Logo size={120} />
+        <Link href="/" className="mb-8 scale-125">
+          <Wordmark />
         </Link>
       )}
       <div className="w-full max-w-sm rounded-2xl border border-line bg-white p-8 shadow-sm">
