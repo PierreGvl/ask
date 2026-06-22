@@ -1,22 +1,23 @@
 import "server-only";
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, max } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   apiKeys,
   chunks,
   conversations,
+  corpora,
   dataSources,
   documents,
   type LicenseTier,
   type ProjectConfig,
-  projectCorpusSources,
+  projectCorpora,
   type ProjectTheme,
   projects,
   subscriptions,
   users,
 } from "@/lib/db/schema";
 
-// --- Lectures ---
+// --- Projets (tenants) ---
 
 export function listProjects() {
   return db.select().from(projects).orderBy(desc(projects.createdAt));
@@ -32,14 +33,6 @@ export function listSubscriptions(projectId: string) {
     .from(subscriptions)
     .where(eq(subscriptions.projectId, projectId))
     .orderBy(desc(subscriptions.createdAt));
-}
-
-export function listDataSources(projectId: string) {
-  return db
-    .select()
-    .from(dataSources)
-    .where(eq(dataSources.projectId, projectId))
-    .orderBy(desc(dataSources.createdAt));
 }
 
 export function listApiKeys(projectId: string) {
@@ -59,31 +52,29 @@ export function listApiKeys(projectId: string) {
 
 /** Compteurs pour le tableau de bord. */
 export async function overviewCounts() {
-  const [[p], [u], [d], [c]] = await Promise.all([
+  const [[p], [co], [u], [c]] = await Promise.all([
     db.select({ n: count() }).from(projects),
+    db.select({ n: count() }).from(corpora),
     db.select({ n: count() }).from(users),
-    db.select({ n: count() }).from(documents),
     db.select({ n: count() }).from(conversations),
   ]);
-  return { projects: p.n, users: u.n, documents: d.n, conversations: c.n };
+  return { projects: p.n, corpora: co.n, users: u.n, conversations: c.n };
 }
 
-/** Nombre de documents/chunks par projet (pour le détail). */
+/** Docs/chunks lus par un tenant (agrégés sur ses corpus). */
 export async function projectStats(projectId: string) {
+  const cs = await db
+    .select({ id: projectCorpora.corpusId })
+    .from(projectCorpora)
+    .where(eq(projectCorpora.projectId, projectId));
+  const ids = cs.map((c) => c.id);
+  if (ids.length === 0) return { documents: 0, chunks: 0 };
   const [[d], [c]] = await Promise.all([
-    db
-      .select({ n: count() })
-      .from(documents)
-      .where(eq(documents.projectId, projectId)),
-    db
-      .select({ n: count() })
-      .from(chunks)
-      .where(eq(chunks.projectId, projectId)),
+    db.select({ n: count() }).from(documents).where(inArray(documents.corpusId, ids)),
+    db.select({ n: count() }).from(chunks).where(inArray(chunks.corpusId, ids)),
   ]);
   return { documents: d.n, chunks: c.n };
 }
-
-// --- Mutations ---
 
 export async function createProject(input: {
   slug: string;
@@ -103,6 +94,8 @@ export async function createProject(input: {
   await db
     .insert(subscriptions)
     .values({ projectId: row.id, tier: input.tier, provider: "manual" });
+  // Tout tenant a d'emblée son corpus privé (ses propres données).
+  await createTenantCorpus(row.id, input.slug, input.name);
   return row.id;
 }
 
@@ -153,34 +146,6 @@ export async function setProjectTier(projectId: string, tier: LicenseTier) {
     .where(eq(projects.id, projectId));
 }
 
-export async function createDataSource(input: {
-  projectId: string;
-  kind: (typeof dataSources.kind.enumValues)[number];
-  name: string;
-  domain?: string | null;
-  config?: Record<string, unknown>;
-}) {
-  await db.insert(dataSources).values({
-    projectId: input.projectId,
-    kind: input.kind,
-    name: input.name,
-    domain: input.domain || null,
-    config: input.config,
-  });
-}
-
-/** Marque une source « à resynchroniser » (le worker d'ingestion la traitera). */
-export async function markDataSourceSyncing(id: string) {
-  await db
-    .update(dataSources)
-    .set({ status: "syncing", lastError: null, updatedAt: new Date() })
-    .where(eq(dataSources.id, id));
-}
-
-export async function deleteDataSource(id: string) {
-  await db.delete(dataSources).where(eq(dataSources.id, id));
-}
-
 export async function insertApiKey(input: {
   projectId: string;
   name: string;
@@ -205,39 +170,161 @@ export async function revokeApiKey(id: string) {
     .where(eq(apiKeys.id, id));
 }
 
-// --- Sources de corpus partagées ---
+// --- Corpus ---
 
-export function listCorpusSources(projectId: string) {
+export function listCorpora() {
   return db
     .select({
-      sourceProjectId: projectCorpusSources.sourceProjectId,
-      name: projects.name,
-      slug: projects.slug,
+      id: corpora.id,
+      slug: corpora.slug,
+      name: corpora.name,
+      description: corpora.description,
+      ownerProjectId: corpora.ownerProjectId,
+      ownerName: projects.name,
+      createdAt: corpora.createdAt,
     })
-    .from(projectCorpusSources)
-    .innerJoin(projects, eq(projects.id, projectCorpusSources.sourceProjectId))
-    .where(eq(projectCorpusSources.projectId, projectId))
+    .from(corpora)
+    .leftJoin(projects, eq(projects.id, corpora.ownerProjectId))
+    .orderBy(desc(corpora.createdAt));
+}
+
+export function getCorpusById(id: string) {
+  return db.query.corpora.findFirst({ where: eq(corpora.id, id) });
+}
+
+export function listCorpusDataSources(corpusId: string) {
+  return db
+    .select()
+    .from(dataSources)
+    .where(eq(dataSources.corpusId, corpusId))
+    .orderBy(desc(dataSources.createdAt));
+}
+
+export async function corpusStats(corpusId: string) {
+  const [[d], [c], [li]] = await Promise.all([
+    db.select({ n: count() }).from(documents).where(eq(documents.corpusId, corpusId)),
+    db.select({ n: count() }).from(chunks).where(eq(chunks.corpusId, corpusId)),
+    db
+      .select({ last: max(documents.ingestedAt) })
+      .from(documents)
+      .where(eq(documents.corpusId, corpusId)),
+  ]);
+  return { documents: d.n, chunks: c.n, lastIngestedAt: li.last ?? null };
+}
+
+/** Tenants qui LISENT ce corpus (pour « Utilisé par »). */
+export function corpusReaders(corpusId: string) {
+  return db
+    .select({ id: projects.id, name: projects.name, slug: projects.slug })
+    .from(projectCorpora)
+    .innerJoin(projects, eq(projects.id, projectCorpora.projectId))
+    .where(eq(projectCorpora.corpusId, corpusId))
     .orderBy(projects.name);
 }
 
-export async function addCorpusSource(projectId: string, sourceProjectId: string) {
-  if (projectId === sourceProjectId) return; // pas d'auto-référence
+/** Corpus LUS par un tenant (privé + partagés abonnés). */
+export function listProjectCorpora(projectId: string) {
+  return db
+    .select({
+      corpusId: corpora.id,
+      name: corpora.name,
+      slug: corpora.slug,
+      ownerProjectId: corpora.ownerProjectId,
+    })
+    .from(projectCorpora)
+    .innerJoin(corpora, eq(corpora.id, projectCorpora.corpusId))
+    .where(eq(projectCorpora.projectId, projectId))
+    .orderBy(corpora.name);
+}
+
+/** Corpus PARTAGÉS (bibliothèques de domaine, owner null). */
+export function listSharedCorpora() {
+  return db
+    .select({ id: corpora.id, name: corpora.name, slug: corpora.slug })
+    .from(corpora)
+    .where(isNull(corpora.ownerProjectId))
+    .orderBy(corpora.name);
+}
+
+export async function createSharedCorpus(input: {
+  slug: string;
+  name: string;
+  description?: string | null;
+}) {
+  const [row] = await db
+    .insert(corpora)
+    .values({
+      slug: input.slug,
+      name: input.name,
+      description: input.description || null,
+      ownerProjectId: null,
+    })
+    .returning({ id: corpora.id });
+  return row.id;
+}
+
+export async function createTenantCorpus(
+  projectId: string,
+  slug: string,
+  name: string,
+) {
+  const [row] = await db
+    .insert(corpora)
+    .values({ slug, name, ownerProjectId: projectId })
+    .returning({ id: corpora.id });
   await db
-    .insert(projectCorpusSources)
-    .values({ projectId, sourceProjectId })
+    .insert(projectCorpora)
+    .values({ projectId, corpusId: row.id })
+    .onConflictDoNothing();
+  return row.id;
+}
+
+export async function linkProjectCorpus(projectId: string, corpusId: string) {
+  await db
+    .insert(projectCorpora)
+    .values({ projectId, corpusId })
     .onConflictDoNothing();
 }
 
-export async function removeCorpusSource(
-  projectId: string,
-  sourceProjectId: string,
-) {
+export async function unlinkProjectCorpus(projectId: string, corpusId: string) {
   await db
-    .delete(projectCorpusSources)
+    .delete(projectCorpora)
     .where(
       and(
-        eq(projectCorpusSources.projectId, projectId),
-        eq(projectCorpusSources.sourceProjectId, sourceProjectId),
+        eq(projectCorpora.projectId, projectId),
+        eq(projectCorpora.corpusId, corpusId),
       ),
     );
+}
+
+// --- Sources de données (d'un corpus) ---
+
+export async function createDataSource(input: {
+  corpusId: string;
+  kind: (typeof dataSources.kind.enumValues)[number];
+  name: string;
+  description?: string | null;
+  domain?: string | null;
+  config?: Record<string, unknown>;
+}) {
+  await db.insert(dataSources).values({
+    corpusId: input.corpusId,
+    kind: input.kind,
+    name: input.name,
+    description: input.description || null,
+    domain: input.domain || null,
+    config: input.config,
+  });
+}
+
+/** Marque une source « à resynchroniser » (l'ingestion réelle est CLI). */
+export async function markDataSourceSyncing(id: string) {
+  await db
+    .update(dataSources)
+    .set({ status: "syncing", lastError: null, updatedAt: new Date() })
+    .where(eq(dataSources.id, id));
+}
+
+export async function deleteDataSource(id: string) {
+  await db.delete(dataSources).where(eq(dataSources.id, id));
 }

@@ -128,28 +128,41 @@ export async function deletePlatformAdminAction(formData: FormData) {
   revalidatePath("/admin/users");
 }
 
+export async function createCorpusAction(formData: FormData) {
+  await requirePlatformAdmin();
+  const slug = str(formData.get("slug"));
+  const name = str(formData.get("name"));
+  if (!slug || !name) throw new Error("slug et name requis");
+  await q.createSharedCorpus({
+    slug,
+    name,
+    description: str(formData.get("description")) || null,
+  });
+  revalidatePath("/admin/corpus");
+}
+
 export async function createDataSourceAction(formData: FormData) {
   await requirePlatformAdmin();
-  const projectId = str(formData.get("projectId"));
   await q.createDataSource({
-    projectId,
+    corpusId: str(formData.get("corpusId")),
     kind: str(formData.get("kind")) as never,
     name: str(formData.get("name")),
+    description: str(formData.get("description")) || null,
     domain: str(formData.get("domain")) || null,
   });
-  revalidatePath(`/admin/projects/${projectId}`);
+  revalidatePath("/admin/corpus");
 }
 
 export async function resyncDataSourceAction(formData: FormData) {
   await requirePlatformAdmin();
   await q.markDataSourceSyncing(str(formData.get("id")));
-  revalidatePath(`/admin/projects/${str(formData.get("projectId"))}`);
+  revalidatePath("/admin/corpus");
 }
 
 export async function deleteDataSourceAction(formData: FormData) {
   await requirePlatformAdmin();
   await q.deleteDataSource(str(formData.get("id")));
-  revalidatePath(`/admin/projects/${str(formData.get("projectId"))}`);
+  revalidatePath("/admin/corpus");
 }
 
 export async function revokeApiKeyAction(formData: FormData) {
@@ -158,18 +171,19 @@ export async function revokeApiKeyAction(formData: FormData) {
   revalidatePath(`/admin/projects/${str(formData.get("projectId"))}`);
 }
 
-export async function addCorpusSourceAction(formData: FormData) {
+/** Abonne un tenant à un corpus (son privé est déjà lié). */
+export async function linkCorpusAction(formData: FormData) {
   await requirePlatformAdmin();
   const projectId = str(formData.get("projectId"));
-  const sourceProjectId = str(formData.get("sourceProjectId"));
-  if (sourceProjectId) await q.addCorpusSource(projectId, sourceProjectId);
+  const corpusId = str(formData.get("corpusId"));
+  if (corpusId) await q.linkProjectCorpus(projectId, corpusId);
   revalidatePath(`/admin/projects/${projectId}`);
 }
 
-export async function removeCorpusSourceAction(formData: FormData) {
+export async function unlinkCorpusAction(formData: FormData) {
   await requirePlatformAdmin();
   const projectId = str(formData.get("projectId"));
-  await q.removeCorpusSource(projectId, str(formData.get("sourceProjectId")));
+  await q.unlinkProjectCorpus(projectId, str(formData.get("corpusId")));
   revalidatePath(`/admin/projects/${projectId}`);
 }
 

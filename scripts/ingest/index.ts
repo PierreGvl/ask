@@ -2,9 +2,11 @@
  * Pipeline d'ingestion RAG (CLI).
  *
  * Usage :
- *   npm run ingest -- --project winetech --path ./corpus [--source upload] [--domain reglementaire]
+ *   npm run ingest -- --corpus vin-reglementaire --path ./corpus [--source legifrance] [--domain reglementaire]
+ *   npm run ingest -- --project hervai --path ./data   # alias : corpus PRIVÉ du tenant
  *
- * --project est le slug du projet (tenant) cible ; obligatoire en multi-tenant.
+ * --corpus est le slug du corpus cible (partagé ou privé). --project est un alias
+ * pratique qui résout le corpus privé du tenant. L'un des deux est requis.
  *
  * Parcourt un dossier de fichiers (.pdf, .html, .txt, .md), les parse,
  * les découpe, calcule les embeddings Mistral et les upsert dans pgvector.
@@ -67,10 +69,11 @@ async function main() {
   const dir = resolve(args.path ?? "./corpus");
   const source = args.source ?? "upload";
   const domain = args.domain ?? "reglementaire";
+  const corpusSlug = args.corpus;
   const projectSlug = args.project;
-  if (!projectSlug) {
+  if (!corpusSlug && !projectSlug) {
     console.error(
-      "❌ --project <slug> est requis (tenant cible). Ex : --project winetech",
+      "❌ --corpus <slug> (ou --project <slug> pour le corpus privé du tenant) est requis.",
     );
     process.exit(1);
   }
@@ -81,17 +84,38 @@ async function main() {
   const { upsertDocument } = await import("./embed-upsert");
   const { eq } = await import("drizzle-orm");
   const { db } = await import("@/lib/db");
-  const { projects } = await import("@/lib/db/schema");
+  const { corpora, projects } = await import("@/lib/db/schema");
 
-  const project = await db.query.projects.findFirst({
-    where: eq(projects.slug, projectSlug),
-    columns: { id: true, name: true },
-  });
-  if (!project) {
-    console.error(`❌ Projet introuvable pour le slug « ${projectSlug} ».`);
-    process.exit(1);
+  // Résolution du corpus cible.
+  let corpus: { id: string; name: string } | undefined;
+  if (corpusSlug) {
+    corpus = await db.query.corpora.findFirst({
+      where: eq(corpora.slug, corpusSlug),
+      columns: { id: true, name: true },
+    });
+    if (!corpus) {
+      console.error(`❌ Corpus introuvable pour le slug « ${corpusSlug} ».`);
+      process.exit(1);
+    }
+  } else {
+    const project = await db.query.projects.findFirst({
+      where: eq(projects.slug, projectSlug!),
+      columns: { id: true, name: true },
+    });
+    if (!project) {
+      console.error(`❌ Projet introuvable pour le slug « ${projectSlug} ».`);
+      process.exit(1);
+    }
+    corpus = await db.query.corpora.findFirst({
+      where: eq(corpora.ownerProjectId, project.id),
+      columns: { id: true, name: true },
+    });
+    if (!corpus) {
+      console.error(`❌ Aucun corpus privé pour le tenant « ${projectSlug} ».`);
+      process.exit(1);
+    }
   }
-  console.log(`Tenant : ${project.name} (${projectSlug})`);
+  console.log(`Corpus : ${corpus.name}`);
 
   const files = await listFiles(dir);
   if (files.length === 0) {
@@ -115,7 +139,7 @@ async function main() {
     console.log(`  ${docChunks.length} chunk(s)`);
 
     const status = await upsertDocument({
-      projectId: project.id,
+      corpusId: corpus.id,
       source: meta.source ?? source,
       domain: meta.domain ?? domain,
       title: meta.title ?? parsedTitle,
@@ -133,9 +157,9 @@ async function main() {
     }
   }
 
-  // Met à jour la source de données du projet (panneau de pilotage console).
+  // Met à jour la source de données du corpus (panneau de pilotage console).
   try {
-    const { and, count, eq: eqOp } = await import("drizzle-orm");
+    const { and: andOp, count, eq: eqOp } = await import("drizzle-orm");
     const { dataSources, documents } = await import("@/lib/db/schema");
     const KIND: Record<string, string> = {
       eurlex: "public_corpus",
@@ -147,15 +171,15 @@ async function main() {
       .select({ n: count() })
       .from(documents)
       .where(
-        and(
-          eqOp(documents.projectId, project.id),
+        andOp(
+          eqOp(documents.corpusId, corpus.id),
           eqOp(documents.domain, domain),
         ),
       );
     const name = `${source} · ${domain}`;
     const existing = await db.query.dataSources.findFirst({
-      where: and(
-        eqOp(dataSources.projectId, project.id),
+      where: andOp(
+        eqOp(dataSources.corpusId, corpus.id),
         eqOp(dataSources.name, name),
       ),
       columns: { id: true },
@@ -174,7 +198,7 @@ async function main() {
         .where(eqOp(dataSources.id, existing.id));
     } else {
       await db.insert(dataSources).values({
-        projectId: project.id,
+        corpusId: corpus.id,
         kind: (KIND[source] ?? "upload") as never,
         name,
         domain,

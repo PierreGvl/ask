@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Database,
   FolderKanban,
   LayoutDashboard,
   LogOut,
@@ -17,6 +18,7 @@ import { cn } from "@/lib/utils";
 const ITEMS = [
   { href: "/admin", label: "Tableau de bord", icon: LayoutDashboard },
   { href: "/admin/projects", label: "Projets", icon: FolderKanban },
+  { href: "/admin/corpus", label: "Corpus", icon: Database },
   { href: "/admin/users", label: "Utilisateurs", icon: Users },
 ];
 

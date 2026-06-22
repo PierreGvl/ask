@@ -1,5 +1,5 @@
 import {
-  FileText,
+  Database,
   FolderKanban,
   MessagesSquare,
   Users,
@@ -24,8 +24,8 @@ export default async function AdminDashboard() {
 
   const stats = [
     { label: "Projets", value: counts.projects, icon: FolderKanban, href: "/admin/projects" },
+    { label: "Corpus", value: counts.corpora, icon: Database, href: "/admin/corpus" },
     { label: "Utilisateurs", value: counts.users, icon: Users, href: "/admin/users" },
-    { label: "Documents", value: counts.documents, icon: FileText, href: "/admin/projects" },
     { label: "Conversations", value: counts.conversations, icon: MessagesSquare, href: "/admin/projects" },
   ];
 

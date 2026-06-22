@@ -163,24 +163,40 @@ export const projectInvitations = pgTable(
   ],
 );
 
-// --- Sources de corpus partagées (lecture cross-projet, explicite & unidirectionnelle) ---
-// Un projet `projectId` peut lire EN PLUS du sien le corpus de `sourceProjectId`
-// (ex. HervAI lit le corpus public réglementaire de Wine Tech). Configuré par le
-// platform-admin uniquement ; ne donne JAMAIS l'accès inverse.
-export const projectCorpusSources = pgTable(
-  "project_corpus_sources",
+// --- Corpus : unité RAG first-class (documents/chunks) ---
+// ownerProjectId = null → corpus PARTAGÉ (bibliothèque de domaine : vin, agri…) ;
+// ownerProjectId = <tenant> → corpus PRIVÉ du tenant (ses propres données).
+export const corpora = pgTable("corpora", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  slug: text("slug").notNull().unique(), // cible de `npm run ingest --corpus <slug>`
+  name: text("name").notNull(),
+  description: text("description"),
+  ownerProjectId: uuid("owner_project_id").references(() => projects.id, {
+    onDelete: "cascade",
+  }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+// --- Corpus LUS par un tenant : son corpus privé + les partagés auxquels il s'abonne ---
+export const projectCorpora = pgTable(
+  "project_corpora",
   {
     projectId: uuid("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
-    sourceProjectId: uuid("source_project_id")
+    corpusId: uuid("corpus_id")
       .notNull()
-      .references(() => projects.id, { onDelete: "cascade" }),
+      .references(() => corpora.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
   },
-  (t) => [primaryKey({ columns: [t.projectId, t.sourceProjectId] })],
+  (t) => [primaryKey({ columns: [t.projectId, t.corpusId] })],
 );
 
 // --- Abonnements (source de vérité du tier ; projects.tier en est le cache) ---
@@ -212,14 +228,14 @@ export const subscriptions = pgTable(
   (t) => [index("subscriptions_project_idx").on(t.projectId)],
 );
 
-// --- Sources de données par projet (panneau de pilotage de la console) ---
+// --- Sources de données d'un CORPUS (panneau de pilotage de la console) ---
 export const dataSources = pgTable(
   "data_sources",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    projectId: uuid("project_id")
+    corpusId: uuid("corpus_id")
       .notNull()
-      .references(() => projects.id, { onDelete: "cascade" }),
+      .references(() => corpora.id, { onDelete: "cascade" }),
     kind: text("kind", {
       enum: [
         "public_corpus",
@@ -230,6 +246,7 @@ export const dataSources = pgTable(
       ],
     }).notNull(),
     name: text("name").notNull(),
+    description: text("description"),
     domain: text("domain"), // sous-corpus alimenté (lie documents.domain)
     status: text("status", { enum: ["idle", "syncing", "error"] })
       .notNull()
@@ -245,7 +262,7 @@ export const dataSources = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (t) => [index("data_sources_project_idx").on(t.projectId)],
+  (t) => [index("data_sources_corpus_idx").on(t.corpusId)],
 );
 
 // --- Clés API (auth du widget embarquable, scopées projet) ---
@@ -318,14 +335,14 @@ export const messages = pgTable(
   (t) => [index("messages_conv_idx").on(t.conversationId, t.createdAt)],
 );
 
-// --- Documents source du RAG ---
+// --- Documents source du RAG (appartiennent à un CORPUS) ---
 export const documents = pgTable(
   "documents",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    projectId: uuid("project_id")
+    corpusId: uuid("corpus_id")
       .notNull()
-      .references(() => projects.id, { onDelete: "cascade" }),
+      .references(() => corpora.id, { onDelete: "cascade" }),
     source: text("source").notNull(), // 'legifrance' | 'inao' | 'eurlex' | 'upload'
     domain: text("domain").notNull().default("reglementaire"),
     title: text("title").notNull(),
@@ -337,7 +354,7 @@ export const documents = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (t) => [index("documents_project_domain_idx").on(t.projectId, t.domain)],
+  (t) => [index("documents_corpus_domain_idx").on(t.corpusId, t.domain)],
 );
 
 // --- Chunks vectorisés ---
@@ -345,10 +362,10 @@ export const chunks = pgTable(
   "chunks",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    // projectId dénormalisé : filtre d'isolation dans le chemin ANN chaud (pas de join)
-    projectId: uuid("project_id")
+    // corpusId dénormalisé : filtre d'isolation dans le chemin ANN chaud (pas de join)
+    corpusId: uuid("corpus_id")
       .notNull()
-      .references(() => projects.id, { onDelete: "cascade" }),
+      .references(() => corpora.id, { onDelete: "cascade" }),
     documentId: uuid("document_id")
       .notNull()
       .references(() => documents.id, { onDelete: "cascade" }),
@@ -371,8 +388,8 @@ export const chunks = pgTable(
       "gin",
       sql`to_tsvector('french', ${t.content})`,
     ),
-    // Isolation tenant + filtre sous-corpus
-    index("chunks_project_domain_idx").on(t.projectId, t.domain),
+    // Isolation par corpus + filtre sous-corpus
+    index("chunks_corpus_domain_idx").on(t.corpusId, t.domain),
   ],
 );
 
@@ -384,7 +401,8 @@ export type Chunk = typeof chunks.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type PlatformAdmin = typeof platformAdmins.$inferSelect;
 export type ProjectInvitation = typeof projectInvitations.$inferSelect;
-export type ProjectCorpusSource = typeof projectCorpusSources.$inferSelect;
+export type Corpus = typeof corpora.$inferSelect;
+export type ProjectCorpus = typeof projectCorpora.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type DataSource = typeof dataSources.$inferSelect;
 export type ApiKey = typeof apiKeys.$inferSelect;

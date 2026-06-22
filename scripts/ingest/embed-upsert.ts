@@ -39,7 +39,7 @@ async function embedBatched(texts: string[]): Promise<number[][]> {
 }
 
 export type UpsertInput = {
-  projectId: string;
+  corpusId: string;
   source: string;
   domain: string;
   title: string;
@@ -50,8 +50,8 @@ export type UpsertInput = {
 };
 
 /**
- * Upsert idempotent d'un document et de ses chunks, scopé au projet.
- * - Dédup par (projectId, title) : deux tenants peuvent avoir un doc homonyme.
+ * Upsert idempotent d'un document et de ses chunks, scopé au CORPUS.
+ * - Dédup par (corpusId, title) : deux corpus peuvent avoir un doc homonyme.
  * - Si un document de même hash existe → skip (rien n'a changé).
  * - Si le document existe avec un hash différent → purge + ré-insertion.
  */
@@ -60,7 +60,7 @@ export async function upsertDocument(
 ): Promise<"skipped" | "ingested"> {
   const existing = await db.query.documents.findFirst({
     where: and(
-      eq(documents.projectId, doc.projectId),
+      eq(documents.corpusId, doc.corpusId),
       eq(documents.title, doc.title),
     ),
   });
@@ -78,7 +78,7 @@ export async function upsertDocument(
     const [inserted] = await tx
       .insert(documents)
       .values({
-        projectId: doc.projectId,
+        corpusId: doc.corpusId,
         source: doc.source,
         domain: doc.domain,
         title: doc.title,
@@ -89,7 +89,7 @@ export async function upsertDocument(
       .returning({ id: documents.id });
 
     const rows = doc.chunks.map((c, i) => ({
-      projectId: doc.projectId,
+      corpusId: doc.corpusId,
       documentId: inserted.id,
       chunkIndex: c.index,
       content: c.content,

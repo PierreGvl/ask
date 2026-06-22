@@ -36,6 +36,13 @@
       "when": 1782300000000,
       "tag": "0004_tenant_scoped_users",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1782400000000,
+      "tag": "0005_corpora_first_class",
+      "breakpoints": true
     }
   ]
 }

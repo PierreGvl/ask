@@ -1,14 +1,12 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import {
-  addCorpusSourceAction,
-  createDataSourceAction,
-  deleteDataSourceAction,
   deleteProjectAction,
-  removeCorpusSourceAction,
-  resyncDataSourceAction,
+  linkCorpusAction,
   revokeApiKeyAction,
   setTierAction,
+  unlinkCorpusAction,
   updateProjectAction,
 } from "@/app/(admin)/admin/actions";
 import { ApiKeyCreator } from "@/components/admin/ApiKeyCreator";
@@ -23,9 +21,8 @@ import { Textarea } from "@/components/ui/Textarea";
 import {
   getProjectById,
   listApiKeys,
-  listCorpusSources,
-  listDataSources,
-  listProjects,
+  listProjectCorpora,
+  listSharedCorpora,
   projectStats,
 } from "@/lib/admin/queries";
 import {
@@ -33,19 +30,7 @@ import {
   listProjectMembers,
 } from "@/lib/projects/queries";
 
-const DATA_SOURCE_KINDS = [
-  "public_corpus",
-  "upload",
-  "url_crawl",
-  "prestashop_feed",
-  "web_search",
-] as const;
-
 const TIER_BADGE = { free: "neutral", pro: "accent", domaine: "accent" } as const;
-
-function fmtDate(d: Date | null) {
-  return d ? new Date(d).toLocaleString("fr-FR") : "—";
-}
 
 export default async function ProjectDetail({
   params,
@@ -57,29 +42,25 @@ export default async function ProjectDetail({
   if (!project) notFound();
 
   const [
-    sources,
     apiKeys,
     stats,
     members,
     invitations,
-    corpusSources,
-    allProjects,
+    readCorpora,
+    sharedCorpora,
     session,
   ] = await Promise.all([
-    listDataSources(id),
     listApiKeys(id),
     projectStats(id),
     listProjectMembers(id),
     listPendingInvitations(id),
-    listCorpusSources(id),
-    listProjects(),
+    listProjectCorpora(id),
+    listSharedCorpora(),
     auth(),
   ]);
-  // Candidats au partage : tout autre projet pas déjà lié.
-  const linkedIds = new Set(corpusSources.map((s) => s.sourceProjectId));
-  const candidateSources = allProjects.filter(
-    (p) => p.id !== id && !linkedIds.has(p.id),
-  );
+  // Candidats à l'abonnement : corpus partagés que le tenant ne lit pas encore.
+  const readIds = new Set(readCorpora.map((c) => c.corpusId));
+  const candidateCorpora = sharedCorpora.filter((c) => !readIds.has(c.id));
   const cfg = project.config ?? {};
   const colors = project.theme?.colors ?? {};
 
@@ -232,177 +213,92 @@ export default async function ProjectDetail({
         </CardBody>
       </Card>
 
-      {/* Sources de données */}
+      {/* Corpus lus par ce tenant */}
       <Card>
         <CardHeader>
-          <CardTitle>Sources de données</CardTitle>
+          <CardTitle>Corpus lus par ce tenant</CardTitle>
         </CardHeader>
         <CardBody className="flex flex-col gap-4">
+          <p className="text-xs text-faint">
+            Le chat de ce tenant puise dans les corpus ci-dessous : son corpus
+            privé + les corpus partagés abonnés. La gestion des sources de
+            données se fait dans l&apos;onglet{" "}
+            <Link href="/admin/corpus" className="text-rose hover:underline">
+              Corpus
+            </Link>
+            .
+          </p>
           <Table>
             <THead>
               <tr>
-                <TH>Nom</TH>
+                <TH>Corpus</TH>
                 <TH>Type</TH>
-                <TH>Statut</TH>
-                <TH>Docs</TH>
-                <TH>Dernière sync</TH>
                 <TH />
               </tr>
             </THead>
             <TBody>
-              {sources.map((s) => (
-                <TR key={s.id}>
-                  <TD className="font-medium text-navy-700">{s.name}</TD>
-                  <TD className="font-mono text-xs">{s.kind}</TD>
-                  <TD>
-                    <Badge
-                      variant={
-                        s.status === "error"
-                          ? "danger"
-                          : s.status === "syncing"
-                            ? "accent"
-                            : "neutral"
-                      }
-                    >
-                      {s.status}
-                    </Badge>
-                  </TD>
-                  <TD>{s.docCount}</TD>
-                  <TD className="text-xs text-faint">{fmtDate(s.lastSyncedAt)}</TD>
-                  <TD className="whitespace-nowrap text-right">
-                    <form action={resyncDataSourceAction} className="inline">
-                      <input type="hidden" name="id" value={s.id} />
-                      <input type="hidden" name="projectId" value={project.id} />
-                      <button
-                        type="submit"
-                        className="mr-3 text-xs font-medium text-navy-700 hover:text-rose hover:underline"
-                      >
-                        Re-sync
-                      </button>
-                    </form>
-                    <form action={deleteDataSourceAction} className="inline">
-                      <input type="hidden" name="id" value={s.id} />
-                      <input type="hidden" name="projectId" value={project.id} />
-                      <button
-                        type="submit"
-                        className="text-xs text-faint hover:text-rose"
-                      >
-                        Suppr.
-                      </button>
-                    </form>
-                  </TD>
-                </TR>
-              ))}
-              {sources.length === 0 && (
-                <TR>
-                  <TD colSpan={6} className="py-5 text-center text-faint">
-                    Aucune source.
-                  </TD>
-                </TR>
-              )}
-            </TBody>
-          </Table>
-
-          <form
-            action={createDataSourceAction}
-            className="grid gap-3 border-t border-line pt-4 sm:grid-cols-3"
-          >
-            <input type="hidden" name="projectId" value={project.id} />
-            <TextField name="name" label="Nom" placeholder="Catalogue produits" />
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-faint">Type</span>
-              <Select name="kind">
-                {DATA_SOURCE_KINDS.map((k) => (
-                  <option key={k} value={k}>
-                    {k}
-                  </option>
-                ))}
-              </Select>
-            </label>
-            <TextField name="domain" label="Sous-corpus" placeholder="catalogue" />
-            <div className="sm:col-span-3">
-              <Button type="submit" variant="outline">
-                Ajouter une source
-              </Button>
-            </div>
-          </form>
-          <p className="text-xs text-faint">
-            « Re-sync » marque la source à resynchroniser (statut <em>syncing</em>)
-            ; l&apos;ingestion réelle est exécutée par le pipeline (`npm run
-            ingest -- --project {project.slug}`).
-          </p>
-        </CardBody>
-      </Card>
-
-      {/* Sources de corpus partagées */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Sources de corpus partagées</CardTitle>
-        </CardHeader>
-        <CardBody className="flex flex-col gap-4">
-          <p className="text-xs text-faint">
-            Ce projet lit, en plus du sien, le corpus des projets ci-dessous
-            (lecture seule, unidirectionnelle). Ex. : un négociant vin lit le
-            corpus réglementaire public de Wine Tech.
-          </p>
-          <Table>
-            <THead>
-              <tr>
-                <TH>Projet source</TH>
-                <TH>Slug</TH>
-                <TH />
-              </tr>
-            </THead>
-            <TBody>
-              {corpusSources.map((s) => (
-                <TR key={s.sourceProjectId}>
-                  <TD className="font-medium text-navy-700">{s.name}</TD>
-                  <TD className="font-mono text-xs text-faint">{s.slug}</TD>
-                  <TD className="text-right">
-                    <form action={removeCorpusSourceAction} className="inline">
-                      <input type="hidden" name="projectId" value={project.id} />
-                      <input
-                        type="hidden"
-                        name="sourceProjectId"
-                        value={s.sourceProjectId}
-                      />
-                      <button
-                        type="submit"
-                        className="text-xs text-faint hover:text-rose"
-                      >
-                        Retirer
-                      </button>
-                    </form>
-                  </TD>
-                </TR>
-              ))}
-              {corpusSources.length === 0 && (
+              {readCorpora.map((c) => {
+                const isPrivate = c.ownerProjectId === project.id;
+                return (
+                  <TR key={c.corpusId}>
+                    <TD className="font-medium text-navy-700">{c.name}</TD>
+                    <TD>
+                      <Badge variant={isPrivate ? "neutral" : "accent"}>
+                        {isPrivate ? "privé" : "partagé"}
+                      </Badge>
+                    </TD>
+                    <TD className="text-right">
+                      {!isPrivate && (
+                        <form action={unlinkCorpusAction} className="inline">
+                          <input
+                            type="hidden"
+                            name="projectId"
+                            value={project.id}
+                          />
+                          <input
+                            type="hidden"
+                            name="corpusId"
+                            value={c.corpusId}
+                          />
+                          <button
+                            type="submit"
+                            className="text-xs text-faint hover:text-rose"
+                          >
+                            Désabonner
+                          </button>
+                        </form>
+                      )}
+                    </TD>
+                  </TR>
+                );
+              })}
+              {readCorpora.length === 0 && (
                 <TR>
                   <TD colSpan={3} className="py-5 text-center text-faint">
-                    Aucune source partagée.
+                    Aucun corpus.
                   </TD>
                 </TR>
               )}
             </TBody>
           </Table>
-          {candidateSources.length > 0 && (
+          {candidateCorpora.length > 0 && (
             <form
-              action={addCorpusSourceAction}
+              action={linkCorpusAction}
               className="flex flex-wrap items-end gap-3 border-t border-line pt-4"
             >
               <input type="hidden" name="projectId" value={project.id} />
               <label className="flex flex-col gap-1 text-sm">
-                <span className="text-faint">Ajouter une source</span>
-                <Select name="sourceProjectId" className="w-56">
-                  {candidateSources.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} ({p.slug})
+                <span className="text-faint">Abonner à un corpus partagé</span>
+                <Select name="corpusId" className="w-56">
+                  {candidateCorpora.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
                     </option>
                   ))}
                 </Select>
               </label>
               <Button type="submit" variant="outline">
-                Partager le corpus
+                Abonner
               </Button>
             </form>
           )}

@@ -33,24 +33,21 @@ function toVectorLiteral(values: number[]): string {
 export async function retrieveChunks(
   query: string,
   opts: {
-    projectId: string;
-    /** Sources de corpus partagées lues EN PLUS du projet (cf. corpus-sources). */
-    sharedProjectIds?: string[];
+    /** Corpus à interroger : corpus privé du tenant + partagés abonnés. */
+    corpusIds: string[];
     domain?: string;
     topK?: number;
     maxDistance?: number;
   },
 ): Promise<RetrievedChunk[]> {
-  // projectId est REQUIS et sans défaut : c'est la frontière d'isolation dure.
-  // Il provient toujours du contexte serveur résolu, jamais d'un argument du modèle.
-  // Les sources partagées (réglées par le platform-admin) élargissent la lecture
-  // de façon explicite et unidirectionnelle.
-  const { projectId } = opts;
-  const projectIds = [projectId, ...(opts.sharedProjectIds ?? [])];
+  // L'isolation se fait sur corpus_id : un corpus est l'unité de données RAG.
+  // Les IDs proviennent toujours du contexte serveur (project_corpora), jamais
+  // d'un argument du modèle.
+  if (opts.corpusIds.length === 0) return [];
   // Littéral tableau Postgres ('{uuid1,uuid2}') passé en UN seul paramètre :
   // drizzle développerait un tableau JS en liste de params (record), ce qui
   // casse le cast ::uuid[]. Les IDs proviennent de la base (sûrs).
-  const projectIdsLiteral = `{${projectIds.join(",")}}`;
+  const corpusIdsLiteral = `{${opts.corpusIds.join(",")}}`;
   const topK = opts.topK ?? env.RAG_TOP_K;
   const maxDistance = opts.maxDistance ?? env.RAG_MAX_DISTANCE;
   const domain = opts.domain ?? null;
@@ -78,7 +75,7 @@ export async function retrieveChunks(
              (embedding <=> ${vec}::vector) AS distance,
              row_number() OVER (ORDER BY embedding <=> ${vec}::vector) AS rnk
       FROM chunks
-      WHERE project_id = ANY(${projectIdsLiteral}::uuid[])
+      WHERE corpus_id = ANY(${corpusIdsLiteral}::uuid[])
         AND (${domain}::text IS NULL OR domain = ${domain})
       ORDER BY embedding <=> ${vec}::vector
       LIMIT ${candidates}
@@ -90,7 +87,7 @@ export async function retrieveChunks(
                                 plainto_tsquery('french', ${query})) DESC
              ) AS rnk
       FROM chunks
-      WHERE project_id = ANY(${projectIdsLiteral}::uuid[])
+      WHERE corpus_id = ANY(${corpusIdsLiteral}::uuid[])
         AND to_tsvector('french', content) @@ plainto_tsquery('french', ${query})
         AND (${domain}::text IS NULL OR domain = ${domain})
       LIMIT ${candidates}

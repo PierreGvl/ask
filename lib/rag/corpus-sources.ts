@@ -1,17 +1,19 @@
 import "server-only";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { projectCorpusSources } from "@/lib/db/schema";
+import { projectCorpora } from "@/lib/db/schema";
 
 /**
- * IDs des projets dont `projectId` peut lire le corpus EN PLUS du sien.
- * Lecture unidirectionnelle : ne renvoie que les sources configurées pour CE
- * projet, jamais l'inverse. Utilisé dans le chemin chaud de récupération RAG.
+ * IDs des corpus LUS par un tenant : son corpus privé + les corpus partagés
+ * (bibliothèques de domaine) auxquels il est abonné. Sert au filtre d'isolation
+ * du RAG (`corpus_id = ANY(...)`).
  */
-export async function getCorpusSourceIds(projectId: string): Promise<string[]> {
+export async function getCorpusIdsForProject(
+  projectId: string,
+): Promise<string[]> {
   const rows = await db
-    .select({ id: projectCorpusSources.sourceProjectId })
-    .from(projectCorpusSources)
-    .where(eq(projectCorpusSources.projectId, projectId));
+    .select({ id: projectCorpora.corpusId })
+    .from(projectCorpora)
+    .where(eq(projectCorpora.projectId, projectId));
   return rows.map((r) => r.id);
 }
