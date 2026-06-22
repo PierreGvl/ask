@@ -70,6 +70,8 @@ export async function updateProjectAction(formData: FormData) {
     slug: str(formData.get("slug")) || existing.slug,
     customDomain: str(formData.get("customDomain")) || null,
     status: formData.get("status") === "suspended" ? "suspended" : "active",
+    accessMode:
+      formData.get("accessMode") === "private" ? "private" : "public",
     theme,
     config,
   });

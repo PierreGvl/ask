@@ -4,6 +4,7 @@ import { hashPassword } from "@/lib/auth/password";
 import { registerSchema } from "@/lib/auth/validation";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
+import { acceptPendingInvitationsForEmail } from "@/lib/projects/queries";
 
 export const runtime = "nodejs";
 
@@ -37,9 +38,17 @@ export async function POST(req: Request) {
   }
 
   const passwordHash = await hashPassword(password);
-  await db
+  const [created] = await db
     .insert(users)
-    .values({ email: normalizedEmail, passwordHash, name: name ?? null });
+    .values({ email: normalizedEmail, passwordHash, name: name ?? null })
+    .returning({ id: users.id });
+
+  // Rattache automatiquement les invitations en attente pour cet email.
+  try {
+    await acceptPendingInvitationsForEmail(normalizedEmail, created.id, Date.now());
+  } catch (err) {
+    console.error("Acceptation des invitations au signup échouée :", err);
+  }
 
   return NextResponse.json({ ok: true }, { status: 201 });
 }

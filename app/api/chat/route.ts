@@ -13,6 +13,7 @@ import type { Citation, ToolCallTrace } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { generateTitle } from "@/lib/llm/title";
 import type { DeclarationData } from "@/lib/pdf/types";
+import { isProjectMember } from "@/lib/projects/access";
 import { rateLimit, sweepRateLimits } from "@/lib/rate-limit";
 import { resolveProject } from "@/lib/tenant/resolve";
 
@@ -50,6 +51,15 @@ export async function POST(req: Request) {
   const session = await auth();
   const userId = session?.user?.id ?? null;
   const persist = Boolean(userId && conversationId);
+
+  // Projet privé : accès réservé aux membres (le mode invité y est désactivé).
+  if (project.accessMode === "private") {
+    if (!userId || !(await isProjectMember(userId, project.id))) {
+      return new Response("Accès réservé aux membres du projet", {
+        status: 403,
+      });
+    }
+  }
 
   // Rate-limit du mode invité (anonyme), par IP + projet, anti-abus.
   if (!userId && env.GUEST_RATE_LIMIT_PER_MIN > 0) {

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { auth } from "@/auth";
 import {
   createDataSourceAction,
   deleteDataSourceAction,
@@ -9,6 +10,7 @@ import {
   updateProjectAction,
 } from "@/app/(admin)/admin/actions";
 import { ApiKeyCreator } from "@/components/admin/ApiKeyCreator";
+import { MembersPanel } from "@/components/projects/MembersPanel";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -22,6 +24,10 @@ import {
   listDataSources,
   projectStats,
 } from "@/lib/admin/queries";
+import {
+  listPendingInvitations,
+  listProjectMembers,
+} from "@/lib/projects/queries";
 
 const DATA_SOURCE_KINDS = [
   "public_corpus",
@@ -46,11 +52,15 @@ export default async function ProjectDetail({
   const project = await getProjectById(id);
   if (!project) notFound();
 
-  const [sources, apiKeys, stats] = await Promise.all([
-    listDataSources(id),
-    listApiKeys(id),
-    projectStats(id),
-  ]);
+  const [sources, apiKeys, stats, members, invitations, session] =
+    await Promise.all([
+      listDataSources(id),
+      listApiKeys(id),
+      projectStats(id),
+      listProjectMembers(id),
+      listPendingInvitations(id),
+      auth(),
+    ]);
   const cfg = project.config ?? {};
   const colors = project.theme?.colors ?? {};
 
@@ -67,6 +77,11 @@ export default async function ProjectDetail({
             <Badge variant={TIER_BADGE[project.tier]}>{project.tier}</Badge>
             <Badge variant={project.status === "active" ? "success" : "warning"}>
               {project.status}
+            </Badge>
+            <Badge
+              variant={project.accessMode === "private" ? "accent" : "neutral"}
+            >
+              {project.accessMode === "private" ? "privé" : "public"}
             </Badge>
             <span className="text-faint">
               {stats.documents} docs · {stats.chunks} chunks
@@ -127,6 +142,13 @@ export default async function ProjectDetail({
               <Select name="status" defaultValue={project.status}>
                 <option value="active">active</option>
                 <option value="suspended">suspended</option>
+              </Select>
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-faint">Accès au chat</span>
+              <Select name="accessMode" defaultValue={project.accessMode}>
+                <option value="public">public (ouvert à tous)</option>
+                <option value="private">privé (membres invités)</option>
               </Select>
             </label>
             <TextField
@@ -290,6 +312,21 @@ export default async function ProjectDetail({
             ; l&apos;ingestion réelle est exécutée par le pipeline (`npm run
             ingest -- --project {project.slug}`).
           </p>
+        </CardBody>
+      </Card>
+
+      {/* Membres & invitations */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Membres & invitations</CardTitle>
+        </CardHeader>
+        <CardBody>
+          <MembersPanel
+            projectId={project.id}
+            members={members}
+            invitations={invitations}
+            currentUserId={session?.user?.id ?? null}
+          />
         </CardBody>
       </Card>
 

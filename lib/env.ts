@@ -40,6 +40,16 @@ const envSchema = z.object({
   WIDGET_RATE_LIMIT_PER_MIN: z.coerce.number().int().nonnegative().default(30),
   GUEST_RATE_LIMIT_PER_MIN: z.coerce.number().int().nonnegative().default(20),
 
+  // Envoi d'emails (invitations). Transport SMTP générique → compatible
+  // n'importe quel fournisseur souverain EU (Brevo, Scaleway TEM, Mailjet…).
+  // Si SMTP_HOST est absent, on bascule sur un transport « log » (dev) qui
+  // imprime l'URL d'invitation au lieu d'envoyer un email.
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  EMAIL_FROM: z.string().default("Ask <no-reply@obsidio.fr>"),
+
   // Facturation Stripe (optionnel ; le webhook renvoie 501 si absent).
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),

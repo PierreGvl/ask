@@ -1,6 +1,8 @@
+import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { ChatShell } from "@/components/sidebar/ChatShell";
 import { listConversations } from "@/lib/db/queries";
+import { isProjectMember } from "@/lib/projects/access";
 import { resolveProject } from "@/lib/tenant/resolve";
 
 export default async function ChatLayout({
@@ -11,6 +13,12 @@ export default async function ChatLayout({
   const session = await auth();
   const user = session?.user ?? null;
   const project = await resolveProject();
+
+  // Projet privé : chat réservé aux membres (anonyme ou non-membre → login).
+  if (project?.accessMode === "private") {
+    if (!user?.id) redirect("/login");
+    if (!(await isProjectMember(user.id, project.id))) redirect("/login");
+  }
 
   const conversations =
     user?.id && project

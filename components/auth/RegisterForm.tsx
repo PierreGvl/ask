@@ -7,7 +7,13 @@ import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 
-export function RegisterForm() {
+export function RegisterForm({
+  defaultEmail,
+  lockEmail = false,
+}: {
+  defaultEmail?: string;
+  lockEmail?: boolean;
+} = {}) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -75,7 +81,16 @@ export function RegisterForm() {
         <label htmlFor="email" className="text-sm font-medium text-ink">
           Email
         </label>
-        <Input id="email" name="email" type="email" required autoComplete="email" />
+        <Input
+          id="email"
+          name="email"
+          type="email"
+          required
+          autoComplete="email"
+          defaultValue={defaultEmail}
+          readOnly={lockEmail}
+          className={lockEmail ? "bg-surface-2 text-faint" : undefined}
+        />
       </div>
       <div className="flex flex-col gap-1.5">
         <label htmlFor="password" className="text-sm font-medium text-ink">

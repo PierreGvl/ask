@@ -74,6 +74,11 @@ export const projects = pgTable("projects", {
   status: text("status", { enum: ["active", "suspended"] })
     .notNull()
     .default("active"),
+  // Contrôle d'accès au chat tenant : 'public' = ouvert à tous (Wine Tech,
+  // imprimeur) ; 'private' = login + appartenance requis (HervAI).
+  accessMode: text("access_mode", { enum: ["public", "private"] })
+    .notNull()
+    .default("public"),
   // tier dénormalisé (cache) ; la table subscriptions est la source de vérité
   tier: text("tier", { enum: ["free", "pro", "domaine"] })
     .notNull()
@@ -123,6 +128,36 @@ export const projectUsers = pgTable(
       .notNull(),
   },
   (t) => [primaryKey({ columns: [t.projectId, t.userId] })],
+);
+
+// --- Invitations par email à rejoindre un projet (avec rôle) ---
+// Le token n'est jamais stocké en clair : on garde son SHA-256 (tokenHash) ;
+// le secret transite uniquement dans l'URL d'invitation envoyée par email.
+export const projectInvitations = pgTable(
+  "project_invitations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    email: text("email").notNull(), // toujours stocké en minuscules
+    role: text("role", { enum: ["owner", "admin", "member"] })
+      .notNull()
+      .default("member"),
+    tokenHash: text("token_hash").notNull(), // SHA-256 du token, jamais le secret
+    invitedBy: uuid("invited_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    index("project_invitations_project_email_idx").on(t.projectId, t.email),
+    index("project_invitations_token_idx").on(t.tokenHash),
+  ],
 );
 
 // --- Abonnements (source de vérité du tier ; projects.tier en est le cache) ---
@@ -325,6 +360,8 @@ export type DocumentRow = typeof documents.$inferSelect;
 export type Chunk = typeof chunks.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type ProjectUser = typeof projectUsers.$inferSelect;
+export type ProjectRole = ProjectUser["role"];
+export type ProjectInvitation = typeof projectInvitations.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type DataSource = typeof dataSources.$inferSelect;
 export type ApiKey = typeof apiKeys.$inferSelect;

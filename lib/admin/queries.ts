@@ -125,6 +125,7 @@ export async function updateProject(
     slug?: string;
     customDomain?: string | null;
     status?: "active" | "suspended";
+    accessMode?: "public" | "private";
     theme?: ProjectTheme;
     config?: ProjectConfig;
   },
@@ -137,6 +138,16 @@ export async function updateProject(
 
 export async function deleteProject(id: string) {
   await db.delete(projects).where(eq(projects.id, id));
+}
+
+export async function setProjectAccessMode(
+  id: string,
+  accessMode: "public" | "private",
+) {
+  await db
+    .update(projects)
+    .set({ accessMode, updatedAt: new Date() })
+    .where(eq(projects.id, id));
 }
 
 /** Change le tier : nouvel abonnement (vérité) + mise à jour du cache projet. */
