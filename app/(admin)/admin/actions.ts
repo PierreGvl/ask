@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePlatformAdmin } from "@/lib/admin/guard";
 import { generateApiKey } from "@/lib/admin/api-keys";
+import * as pa from "@/lib/admin/platform-admins";
 import * as q from "@/lib/admin/queries";
 import type { LicenseTier, ProjectConfig, ProjectTheme } from "@/lib/db/schema";
 
@@ -92,12 +93,38 @@ export async function setTierAction(formData: FormData) {
   revalidatePath(`/admin/projects/${id}`);
 }
 
-export async function toggleAdminAction(formData: FormData) {
+export async function createPlatformAdminAction(formData: FormData) {
   await requirePlatformAdmin();
-  await q.setUserPlatformAdmin(
-    str(formData.get("userId")),
-    formData.get("value") === "true",
-  );
+  const email = str(formData.get("email")).toLowerCase();
+  const password = str(formData.get("password"));
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || password.length < 12) {
+    throw new Error("Email valide et mot de passe (≥ 12 caractères) requis.");
+  }
+  await pa.createPlatformAdmin({
+    email,
+    name: str(formData.get("name")) || null,
+    password,
+  });
+  revalidatePath("/admin/users");
+}
+
+export async function resetPlatformAdminPasswordAction(formData: FormData) {
+  await requirePlatformAdmin();
+  const password = str(formData.get("password"));
+  if (password.length < 12) {
+    throw new Error("Mot de passe ≥ 12 caractères requis.");
+  }
+  await pa.setPlatformAdminPassword(str(formData.get("id")), password);
+  revalidatePath("/admin/users");
+}
+
+export async function deletePlatformAdminAction(formData: FormData) {
+  await requirePlatformAdmin();
+  // Ne jamais supprimer le dernier admin console.
+  if ((await pa.countPlatformAdmins()) <= 1) {
+    throw new Error("Impossible de supprimer le dernier admin console.");
+  }
+  await pa.deletePlatformAdmin(str(formData.get("id")));
   revalidatePath("/admin/users");
 }
 

@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 
 export function RegisterForm({
+  projectId,
   defaultEmail,
   lockEmail = false,
 }: {
+  projectId?: string;
   defaultEmail?: string;
   lockEmail?: boolean;
 } = {}) {
@@ -42,8 +44,14 @@ export function RegisterForm({
       return;
     }
 
-    // Connexion automatique après inscription.
-    await signIn("credentials", { email, password, redirect: false });
+    // Connexion automatique après inscription (scopée au tenant).
+    await signIn("credentials", {
+      email,
+      password,
+      scope: "tenant",
+      projectId: projectId ?? "",
+      redirect: false,
+    });
     setLoading(false);
     router.push("/");
     router.refresh();

@@ -1,20 +1,20 @@
 import "server-only";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { auth } from "@/auth";
+import { requirePlatformAdmin } from "@/lib/admin/guard";
 import { db } from "@/lib/db";
 import {
+  type PlatformAdmin,
   type ProjectRole,
   type User,
-  projectUsers,
   users,
 } from "@/lib/db/schema";
 
 /**
- * Autorisation scopée projet, bâtie sur `project_users`.
- *
- * Comme `lib/admin/guard.ts`, le rôle est lu en base à chaque appel (pas dans le
- * JWT) → révocation immédiate. Un platform-admin est traité comme `owner`
- * implicite sur TOUS les projets.
+ * Autorisation scopée projet. Les comptes sont cloisonnés par tenant : un user
+ * appartient à exactement un projet (users.projectId) et porte son rôle
+ * (users.role). Plus de "platform-admin = owner implicite" sur les tenants : les
+ * admins console gèrent via la console (cf. requireProjectManager).
  */
 
 const ROLE_RANK: Record<ProjectRole, number> = {
@@ -27,22 +27,14 @@ export function canManageProject(role: ProjectRole | null): boolean {
   return role === "owner" || role === "admin";
 }
 
-/** Rôle effectif de l'utilisateur sur le projet (owner si platform-admin). */
+/** Rôle de l'utilisateur SUR ce projet (null s'il appartient à un autre projet). */
 export async function getProjectRole(
   userId: string,
   projectId: string,
 ): Promise<ProjectRole | null> {
   const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
-  if (!user) return null;
-  if (user.isPlatformAdmin) return "owner";
-
-  const membership = await db.query.projectUsers.findFirst({
-    where: and(
-      eq(projectUsers.userId, userId),
-      eq(projectUsers.projectId, projectId),
-    ),
-  });
-  return membership?.role ?? null;
+  if (!user || user.projectId !== projectId) return null;
+  return user.role;
 }
 
 /** Appartenance simple (pour le gating du chat privé). */
@@ -56,9 +48,9 @@ export async function isProjectMember(
 export type ProjectAccess = { user: User; role: ProjectRole };
 
 /**
- * Exige une session dont l'utilisateur possède au moins le rôle `min` sur le
- * projet. Codes alignés sur `requirePlatformAdmin` pour un traitement commun
- * dans les layouts (`UNAUTHENTICATED` → /login ; `FORBIDDEN` → 404).
+ * Exige une session TENANT du projet courant avec au moins le rôle `min`.
+ * Codes alignés sur requirePlatformAdmin pour les layouts (UNAUTHENTICATED →
+ * /login ; FORBIDDEN → 404).
  */
 export async function requireProjectRole(
   projectId: string,
@@ -66,25 +58,36 @@ export async function requireProjectRole(
 ): Promise<ProjectAccess> {
   const session = await auth();
   if (!session?.user?.id) throw new Error("UNAUTHENTICATED");
-
+  if (session.user.kind !== "tenant" || session.user.projectId !== projectId) {
+    throw new Error("FORBIDDEN");
+  }
   const user = await db.query.users.findFirst({
     where: eq(users.id, session.user.id),
   });
-  if (!user) throw new Error("UNAUTHENTICATED");
+  if (!user || user.projectId !== projectId) throw new Error("FORBIDDEN");
+  if (ROLE_RANK[user.role] < ROLE_RANK[min]) throw new Error("FORBIDDEN");
+  return { user, role: user.role };
+}
 
-  const role: ProjectRole | null = user.isPlatformAdmin
-    ? "owner"
-    : ((
-        await db.query.projectUsers.findFirst({
-          where: and(
-            eq(projectUsers.userId, user.id),
-            eq(projectUsers.projectId, projectId),
-          ),
-        })
-      )?.role ?? null);
+export type ProjectManager =
+  | { kind: "console"; admin: PlatformAdmin }
+  | { kind: "tenant"; user: User; role: ProjectRole };
 
-  if (!role || ROLE_RANK[role] < ROLE_RANK[min]) {
-    throw new Error("FORBIDDEN");
+/**
+ * Autorise la GESTION d'un projet par un admin console (depuis la console) OU
+ * un user tenant de rôle ≥ `min` (depuis /manage). Permet aux actions membres
+ * partagées de tourner des deux surfaces.
+ */
+export async function requireProjectManager(
+  projectId: string,
+  min: ProjectRole = "admin",
+): Promise<ProjectManager> {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("UNAUTHENTICATED");
+  if (session.user.kind === "console") {
+    const admin = await requirePlatformAdmin();
+    return { kind: "console", admin };
   }
-  return { user, role };
+  const access = await requireProjectRole(projectId, min);
+  return { kind: "tenant", user: access.user, role: access.role };
 }

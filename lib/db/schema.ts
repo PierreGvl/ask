@@ -1,6 +1,5 @@
 import { sql } from "drizzle-orm";
 import {
-  boolean,
   index,
   integer,
   jsonb,
@@ -8,9 +7,13 @@ import {
   primaryKey,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
   vector,
 } from "drizzle-orm/pg-core";
+
+export const PROJECT_ROLES = ["owner", "admin", "member"] as const;
+export type ProjectRole = (typeof PROJECT_ROLES)[number];
 
 /** Une source citée dans une réponse de l'assistant. */
 export type Citation = {
@@ -96,39 +99,41 @@ export const projects = pgTable("projects", {
     .notNull(),
 });
 
-// --- Comptes utilisateurs (auth email/mot de passe, sessions JWT) ---
-// users reste global : 1 personne = 1 compte, membre de N projets via project_users.
-export const users = pgTable("users", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  email: text("email").notNull().unique(),
-  passwordHash: text("password_hash").notNull(),
-  name: text("name"),
-  // accès à la console plateforme /admin (staff Obsidio, vue globale)
-  isPlatformAdmin: boolean("is_platform_admin").notNull().default(false),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
-
-// --- Appartenance user ↔ projet + rôle scoped projet ---
-export const projectUsers = pgTable(
-  "project_users",
+// --- Comptes utilisateurs : CLOISONNÉS PAR TENANT (marque blanche) ---
+// Identité = (projectId, email). Le même email peut exister, indépendamment,
+// sur plusieurs tenants. Le rôle (owner/admin/member) vit ici (plus de table
+// d'appartenance séparée : 1 compte = 1 projet).
+export const users = pgTable(
+  "users",
   {
+    id: uuid("id").defaultRandom().primaryKey(),
     projectId: uuid("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    role: text("role", { enum: ["owner", "admin", "member"] })
-      .notNull()
-      .default("member"),
+    email: text("email").notNull(),
+    passwordHash: text("password_hash").notNull(),
+    name: text("name"),
+    role: text("role", { enum: PROJECT_ROLES }).notNull().default("member"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
   },
-  (t) => [primaryKey({ columns: [t.projectId, t.userId] })],
+  (t) => [
+    uniqueIndex("users_project_email_unique").on(t.projectId, t.email),
+    index("users_project_idx").on(t.projectId),
+  ],
 );
+
+// --- Admins console (staff Obsidio) : identité GLOBALE séparée des tenants ---
+export const platformAdmins = pgTable("platform_admins", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  name: text("name"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
 
 // --- Invitations par email à rejoindre un projet (avec rôle) ---
 // Le token n'est jamais stocké en clair : on garde son SHA-256 (tokenHash) ;
@@ -141,9 +146,7 @@ export const projectInvitations = pgTable(
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
     email: text("email").notNull(), // toujours stocké en minuscules
-    role: text("role", { enum: ["owner", "admin", "member"] })
-      .notNull()
-      .default("member"),
+    role: text("role", { enum: PROJECT_ROLES }).notNull().default("member"),
     tokenHash: text("token_hash").notNull(), // SHA-256 du token, jamais le secret
     invitedBy: uuid("invited_by").references(() => users.id, {
       onDelete: "set null",
@@ -379,8 +382,7 @@ export type Message = typeof messages.$inferSelect;
 export type DocumentRow = typeof documents.$inferSelect;
 export type Chunk = typeof chunks.$inferSelect;
 export type Project = typeof projects.$inferSelect;
-export type ProjectUser = typeof projectUsers.$inferSelect;
-export type ProjectRole = ProjectUser["role"];
+export type PlatformAdmin = typeof platformAdmins.$inferSelect;
 export type ProjectInvitation = typeof projectInvitations.$inferSelect;
 export type ProjectCorpusSource = typeof projectCorpusSources.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;

@@ -2,18 +2,18 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
-import { getProjectById } from "@/lib/admin/queries";
-import type { ProjectRole } from "@/lib/db/schema";
+import { getProjectById, setProjectAccessMode } from "@/lib/admin/queries";
+import { PROJECT_ROLES, type ProjectRole } from "@/lib/db/schema";
 import { sendInvitationEmail } from "@/lib/email";
-import { canManageProject, requireProjectRole } from "@/lib/projects/access";
+import { requireProjectManager } from "@/lib/projects/access";
 import * as q from "@/lib/projects/queries";
 
 export type ActionResult = { ok: boolean; error?: string };
 
-const ROLES: ProjectRole[] = ["owner", "admin", "member"];
-
 function asRole(v: unknown): ProjectRole {
-  return ROLES.includes(v as ProjectRole) ? (v as ProjectRole) : "member";
+  return (PROJECT_ROLES as readonly string[]).includes(v as string)
+    ? (v as ProjectRole)
+    : "member";
 }
 
 /** Revalide les deux surfaces qui affichent les membres. */
@@ -27,7 +27,7 @@ export async function inviteMemberAction(
   email: string,
   role: string,
 ): Promise<ActionResult> {
-  const { user } = await requireProjectRole(projectId, "admin");
+  const manager = await requireProjectManager(projectId, "admin");
   const normalized = email.trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalized)) {
     return { ok: false, error: "Email invalide." };
@@ -35,20 +35,16 @@ export async function inviteMemberAction(
   const project = await getProjectById(projectId);
   if (!project) return { ok: false, error: "Projet introuvable." };
 
-  // Déjà membre ? on évite l'invitation redondante.
-  const existing = await q.findUserByEmail(normalized);
-  if (existing) {
-    const current = await q.listProjectMembers(projectId);
-    if (current.some((m) => m.userId === existing.id)) {
-      return { ok: false, error: "Cette personne est déjà membre." };
-    }
+  // Déjà un compte dans CE projet ? (scopé tenant → aucune fuite cross-tenant).
+  if (await q.findUserByProjectEmail(projectId, normalized)) {
+    return { ok: false, error: "Cette personne est déjà membre." };
   }
 
   const { token } = await q.createInvitation({
     projectId,
     email: normalized,
     role: asRole(role),
-    invitedBy: user.id,
+    invitedBy: manager.kind === "tenant" ? manager.user.id : null,
     now: Date.now(),
   });
   const inviteUrl = `${q.projectBaseUrl(project)}/invite/${token}`;
@@ -73,7 +69,7 @@ export async function revokeInvitationAction(
   projectId: string,
   invitationId: string,
 ): Promise<ActionResult> {
-  await requireProjectRole(projectId, "admin");
+  await requireProjectManager(projectId, "admin");
   await q.revokeInvitation(invitationId);
   revalidateMembers(projectId);
   return { ok: true };
@@ -84,7 +80,7 @@ export async function changeMemberRoleAction(
   userId: string,
   role: string,
 ): Promise<ActionResult> {
-  await requireProjectRole(projectId, "admin");
+  await requireProjectManager(projectId, "admin");
   const next = asRole(role);
   const members = await q.listProjectMembers(projectId);
   const target = members.find((m) => m.userId === userId);
@@ -105,7 +101,7 @@ export async function removeMemberAction(
   projectId: string,
   userId: string,
 ): Promise<ActionResult> {
-  await requireProjectRole(projectId, "admin");
+  await requireProjectManager(projectId, "admin");
   const members = await q.listProjectMembers(projectId);
   const target = members.find((m) => m.userId === userId);
   if (!target) return { ok: false, error: "Membre introuvable." };
@@ -119,13 +115,16 @@ export async function removeMemberAction(
 }
 
 /**
- * Acceptation d'une invitation par un utilisateur déjà connecté dont l'email
- * correspond. (Le cas « pas encore inscrit » est géré au signup, cf.
- * acceptPendingInvitationsForEmail dans /api/register.)
+ * Acceptation par un user tenant connecté (du bon projet, email correspondant).
+ * Le cas « pas encore inscrit » est géré au signup (acceptPendingInvitationsForEmail).
  */
 export async function acceptInviteAction(token: string): Promise<ActionResult> {
   const session = await auth();
-  if (!session?.user?.id || !session.user.email) {
+  if (
+    !session?.user?.id ||
+    !session.user.email ||
+    session.user.kind !== "tenant"
+  ) {
     return { ok: false, error: "Connexion requise." };
   }
   const inv = await q.getInvitationByTokenHash(q.hashToken(token));
@@ -135,11 +134,11 @@ export async function acceptInviteAction(token: string): Promise<ActionResult> {
   if (inv.expiresAt.getTime() < Date.now()) {
     return { ok: false, error: "Invitation expirée." };
   }
+  if (session.user.projectId !== inv.projectId) {
+    return { ok: false, error: "Invitation destinée à un autre espace." };
+  }
   if (inv.email.toLowerCase() !== session.user.email.toLowerCase()) {
-    return {
-      ok: false,
-      error: "Cette invitation vise une autre adresse email.",
-    };
+    return { ok: false, error: "Cette invitation vise une autre adresse email." };
   }
   await q.acceptInvitation(inv, session.user.id, Date.now());
   return { ok: true };
@@ -149,11 +148,9 @@ export async function setAccessModeAction(
   projectId: string,
   mode: string,
 ): Promise<ActionResult> {
-  // Réglage sensible : owner (ou platform-admin) uniquement.
-  const access = await requireProjectRole(projectId, "owner");
-  if (!canManageProject(access.role)) return { ok: false };
+  // Réglage sensible : owner du projet (ou admin console).
+  await requireProjectManager(projectId, "owner");
   const next = mode === "private" ? "private" : "public";
-  const { setProjectAccessMode } = await import("@/lib/admin/queries");
   await setProjectAccessMode(projectId, next);
   revalidatePath("/manage/settings");
   revalidatePath(`/admin/projects/${projectId}`);

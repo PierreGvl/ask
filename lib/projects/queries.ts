@@ -8,7 +8,6 @@ import {
   type ProjectInvitation,
   type ProjectRole,
   projectInvitations,
-  projectUsers,
   users,
 } from "@/lib/db/schema";
 
@@ -24,7 +23,7 @@ export function hashToken(plaintext: string): string {
   return createHash("sha256").update(plaintext).digest("hex");
 }
 
-// --- Membres ---
+// --- Membres (= comptes tenant du projet) ---
 
 export type MemberRow = {
   userId: string;
@@ -40,41 +39,20 @@ export function listProjectMembers(projectId: string): Promise<MemberRow[]> {
       userId: users.id,
       email: users.email,
       name: users.name,
-      role: projectUsers.role,
-      createdAt: projectUsers.createdAt,
+      role: users.role,
+      createdAt: users.createdAt,
     })
-    .from(projectUsers)
-    .innerJoin(users, eq(users.id, projectUsers.userId))
-    .where(eq(projectUsers.projectId, projectId))
-    .orderBy(desc(projectUsers.createdAt));
+    .from(users)
+    .where(eq(users.projectId, projectId))
+    .orderBy(desc(users.createdAt));
 }
 
 export async function countOwners(projectId: string): Promise<number> {
   const [row] = await db
     .select({ n: count() })
-    .from(projectUsers)
-    .where(
-      and(
-        eq(projectUsers.projectId, projectId),
-        eq(projectUsers.role, "owner"),
-      ),
-    );
+    .from(users)
+    .where(and(eq(users.projectId, projectId), eq(users.role, "owner")));
   return row?.n ?? 0;
-}
-
-/** Ajoute (ou met à jour le rôle d') un membre. */
-export async function upsertMember(
-  projectId: string,
-  userId: string,
-  role: ProjectRole,
-) {
-  await db
-    .insert(projectUsers)
-    .values({ projectId, userId, role })
-    .onConflictDoUpdate({
-      target: [projectUsers.projectId, projectUsers.userId],
-      set: { role },
-    });
 }
 
 export async function setMemberRole(
@@ -83,30 +61,25 @@ export async function setMemberRole(
   role: ProjectRole,
 ) {
   await db
-    .update(projectUsers)
+    .update(users)
     .set({ role })
-    .where(
-      and(
-        eq(projectUsers.projectId, projectId),
-        eq(projectUsers.userId, userId),
-      ),
-    );
+    .where(and(eq(users.id, userId), eq(users.projectId, projectId)));
 }
 
+/** Retire un membre = SUPPRIME son compte tenant (conversations en cascade). */
 export async function removeMember(projectId: string, userId: string) {
   await db
-    .delete(projectUsers)
-    .where(
-      and(
-        eq(projectUsers.projectId, projectId),
-        eq(projectUsers.userId, userId),
-      ),
-    );
+    .delete(users)
+    .where(and(eq(users.id, userId), eq(users.projectId, projectId)));
 }
 
-export function findUserByEmail(email: string) {
+/** Compte tenant identifié par (projectId, email). */
+export function findUserByProjectEmail(projectId: string, email: string) {
   return db.query.users.findFirst({
-    where: eq(users.email, email.toLowerCase()),
+    where: and(
+      eq(users.projectId, projectId),
+      eq(users.email, email.toLowerCase()),
+    ),
   });
 }
 
@@ -143,7 +116,7 @@ export async function createInvitation(input: {
   projectId: string;
   email: string;
   role: ProjectRole;
-  invitedBy: string;
+  invitedBy: string | null;
   now: number;
 }): Promise<{ token: string }> {
   const token = randomBytes(24).toString("base64url");
@@ -156,6 +129,25 @@ export async function createInvitation(input: {
     expiresAt: new Date(input.now + INVITE_TTL_MS),
   });
   return { token };
+}
+
+/** Vrai s'il existe une invitation en attente (non expirée) pour cet email. */
+export async function hasPendingInvitation(
+  projectId: string,
+  email: string,
+  now: number,
+): Promise<boolean> {
+  const rows = await db
+    .select({ expiresAt: projectInvitations.expiresAt })
+    .from(projectInvitations)
+    .where(
+      and(
+        eq(projectInvitations.projectId, projectId),
+        eq(projectInvitations.email, email.toLowerCase()),
+        isNull(projectInvitations.acceptedAt),
+      ),
+    );
+  return rows.some((r) => r.expiresAt.getTime() >= now);
 }
 
 export function getInvitationByTokenHash(tokenHash: string) {
@@ -173,8 +165,8 @@ export async function revokeInvitation(id: string) {
 }
 
 /**
- * Marque l'invitation acceptée et crée l'appartenance, en une transaction.
- * Idempotent : si déjà membre, le rôle est mis à jour.
+ * Acceptation : applique le rôle de l'invitation au compte tenant `userId`
+ * (qui appartient déjà au projet) et marque l'invitation acceptée.
  */
 export async function acceptInvitation(
   invitation: ProjectInvitation,
@@ -183,16 +175,11 @@ export async function acceptInvitation(
 ) {
   await db.transaction(async (tx) => {
     await tx
-      .insert(projectUsers)
-      .values({
-        projectId: invitation.projectId,
-        userId,
-        role: invitation.role,
-      })
-      .onConflictDoUpdate({
-        target: [projectUsers.projectId, projectUsers.userId],
-        set: { role: invitation.role },
-      });
+      .update(users)
+      .set({ role: invitation.role })
+      .where(
+        and(eq(users.id, userId), eq(users.projectId, invitation.projectId)),
+      );
     await tx
       .update(projectInvitations)
       .set({ acceptedAt: new Date(now) })
@@ -200,8 +187,12 @@ export async function acceptInvitation(
   });
 }
 
-/** Accepte toutes les invitations en attente d'un email (au signup). */
+/**
+ * Accepte les invitations en attente d'un email POUR CE PROJET (au signup).
+ * Scopé projet : une invitation d'un autre tenant ne concerne pas ce compte.
+ */
 export async function acceptPendingInvitationsForEmail(
+  projectId: string,
   email: string,
   userId: string,
   now: number,
@@ -211,6 +202,7 @@ export async function acceptPendingInvitationsForEmail(
     .from(projectInvitations)
     .where(
       and(
+        eq(projectInvitations.projectId, projectId),
         eq(projectInvitations.email, email.toLowerCase()),
         isNull(projectInvitations.acceptedAt),
       ),

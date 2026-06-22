@@ -8,10 +8,14 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 
 export function LoginForm({
+  scope = "tenant",
+  projectId,
   showRegister = true,
   redirectTo = "/",
   defaultEmail,
 }: {
+  scope?: "tenant" | "console";
+  projectId?: string;
   showRegister?: boolean;
   redirectTo?: string;
   defaultEmail?: string;
@@ -28,6 +32,8 @@ export function LoginForm({
     const res = await signIn("credentials", {
       email: String(form.get("email")),
       password: String(form.get("password")),
+      scope,
+      projectId: projectId ?? "",
       redirect: false,
     });
     setLoading(false);

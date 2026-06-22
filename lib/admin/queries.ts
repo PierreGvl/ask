@@ -26,19 +26,6 @@ export function getProjectById(id: string) {
   return db.query.projects.findFirst({ where: eq(projects.id, id) });
 }
 
-export function listUsers() {
-  return db
-    .select({
-      id: users.id,
-      email: users.email,
-      name: users.name,
-      isPlatformAdmin: users.isPlatformAdmin,
-      createdAt: users.createdAt,
-    })
-    .from(users)
-    .orderBy(desc(users.createdAt));
-}
-
 export function listSubscriptions(projectId: string) {
   return db
     .select()
@@ -164,13 +151,6 @@ export async function setProjectTier(projectId: string, tier: LicenseTier) {
     .update(projects)
     .set({ tier, updatedAt: new Date() })
     .where(eq(projects.id, projectId));
-}
-
-export async function setUserPlatformAdmin(userId: string, value: boolean) {
-  await db
-    .update(users)
-    .set({ isPlatformAdmin: value })
-    .where(eq(users.id, userId));
 }
 
 export async function createDataSource(input: {

@@ -5,7 +5,7 @@ import { RegisterForm } from "@/components/auth/RegisterForm";
 import { AcceptInvite } from "@/components/projects/AcceptInvite";
 import { getProjectById } from "@/lib/admin/queries";
 import {
-  findUserByEmail,
+  findUserByProjectEmail,
   getInvitationByTokenHash,
   hashToken,
   isInvitationExpired,
@@ -76,9 +76,9 @@ export default async function InvitePage({
     );
   }
 
-  // Anonyme : si un compte existe déjà pour cet email → connexion (retour ici
-  // pour accepter) ; sinon → inscription pré-remplie (accept au signup).
-  const existing = await findUserByEmail(inv.email);
+  // Anonyme : si un compte existe déjà DANS CE PROJET pour cet email → connexion
+  // (retour ici pour accepter) ; sinon → inscription pré-remplie (accept au signup).
+  const existing = await findUserByProjectEmail(inv.projectId, inv.email);
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1 text-center">
@@ -93,12 +93,18 @@ export default async function InvitePage({
       </div>
       {existing ? (
         <LoginForm
+          scope="tenant"
+          projectId={inv.projectId}
           showRegister={false}
           defaultEmail={inv.email}
           redirectTo={`/invite/${token}`}
         />
       ) : (
-        <RegisterForm defaultEmail={inv.email} lockEmail />
+        <RegisterForm
+          projectId={inv.projectId}
+          defaultEmail={inv.email}
+          lockEmail
+        />
       )}
     </div>
   );

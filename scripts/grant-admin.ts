@@ -1,8 +1,9 @@
 /**
- * Promeut (ou rétrograde) un utilisateur au rang d'admin plateforme.
+ * Gère les admins console (table platform_admins, identité globale séparée des
+ * tenants). C'est le chemin de bootstrap : la console n'a pas d'inscription publique.
  *
  * Usage :
- *   npm run admin:grant -- --email contact@obsidio.fr
+ *   npm run admin:grant -- --email contact@obsidio.fr --password 'motdepasse-fort' [--name "Pierre"]
  *   npm run admin:grant -- --email x@y.fr --revoke
  */
 import { config } from "dotenv";
@@ -17,6 +18,8 @@ function arg(name: string): string | undefined {
 async function main() {
   const email = arg("email")?.toLowerCase();
   const revoke = process.argv.includes("--revoke");
+  const password = arg("password");
+  const name = arg("name") ?? null;
   if (!email) {
     console.error("❌ --email requis.");
     process.exit(1);
@@ -24,21 +27,35 @@ async function main() {
 
   const { eq } = await import("drizzle-orm");
   const { db } = await import("@/lib/db");
-  const { users } = await import("@/lib/db/schema");
+  const { platformAdmins } = await import("@/lib/db/schema");
 
-  const res = await db
-    .update(users)
-    .set({ isPlatformAdmin: !revoke })
-    .where(eq(users.email, email))
-    .returning({ id: users.id });
+  if (revoke) {
+    const res = await db
+      .delete(platformAdmins)
+      .where(eq(platformAdmins.email, email))
+      .returning({ id: platformAdmins.id });
+    if (res.length === 0) {
+      console.error(`❌ Aucun admin console avec l'email « ${email} ».`);
+      process.exit(1);
+    }
+    console.log(`✓ ${email} n'est plus admin console.`);
+    process.exit(0);
+  }
 
-  if (res.length === 0) {
-    console.error(`❌ Aucun utilisateur avec l'email « ${email} ».`);
+  if (!password || password.length < 12) {
+    console.error("❌ --password requis (≥ 12 caractères) pour créer/mettre à jour.");
     process.exit(1);
   }
-  console.log(
-    `✓ ${email} ${revoke ? "n'est plus" : "est désormais"} admin plateforme.`,
-  );
+  const { hashPassword } = await import("@/lib/auth/password");
+  const passwordHash = await hashPassword(password);
+  await db
+    .insert(platformAdmins)
+    .values({ email, name, passwordHash })
+    .onConflictDoUpdate({
+      target: platformAdmins.email,
+      set: { passwordHash, name },
+    });
+  console.log(`✓ ${email} est désormais admin console.`);
   process.exit(0);
 }
 
