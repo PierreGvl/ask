@@ -13,6 +13,7 @@
     "db:studio": "drizzle-kit studio",
     "ingest": "tsx scripts/ingest/index.ts",
     "seed:projects": "tsx scripts/seed-projects.ts",
+    "seed:hervai": "tsx scripts/seed-hervai.ts",
     "admin:grant": "tsx scripts/grant-admin.ts",
     "check:isolation": "tsx scripts/check-isolation.ts",
     "llm:smoke": "tsx scripts/smoke-llm.ts"
