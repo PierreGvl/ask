@@ -13,11 +13,16 @@ export default async function AdminLayout({
   //    Sur tout autre domaine (tenants), on masque son existence (404).
   if (env.CONSOLE_HOST && !(await isConsoleHost())) notFound();
 
-  // 2) Garde par rôle : non connecté → login ; connecté non-admin → 404.
+  // 2) Garde par rôle. Sur l'hôte console, toute session invalide (non
+  //    connectée OU identité périmée / mauvais type) → /login (sinon un vieux
+  //    cookie piégerait l'utilisateur en 404). Hors hôte console (dev sans
+  //    CONSOLE_HOST), un non-admin est masqué (404).
   try {
     await requirePlatformAdmin();
   } catch (err) {
-    if ((err as Error).message === "UNAUTHENTICATED") redirect("/login");
+    if ((err as Error).message === "UNAUTHENTICATED" || env.CONSOLE_HOST) {
+      redirect("/login");
+    }
     notFound();
   }
 

@@ -10,10 +10,15 @@ export default async function RegisterPage() {
   // Pas d'inscription publique sur la console.
   if (await isConsoleHost()) notFound();
 
-  const session = await auth();
-  if (session?.user) redirect("/");
-
   const project = await requireProject();
+  const session = await auth();
+  // Ne rediriger qu'une session tenant VALIDE de ce projet (cookie périmé → laisser).
+  if (
+    session?.user?.kind === "tenant" &&
+    session.user.projectId === project.id
+  ) {
+    redirect("/");
+  }
 
   return (
     <div className="flex flex-col gap-6">
