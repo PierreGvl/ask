@@ -7,7 +7,15 @@ import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 
-export function LoginForm({ showRegister = true }: { showRegister?: boolean }) {
+export function LoginForm({
+  showRegister = true,
+  redirectTo = "/",
+  defaultEmail,
+}: {
+  showRegister?: boolean;
+  redirectTo?: string;
+  defaultEmail?: string;
+}) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -27,7 +35,7 @@ export function LoginForm({ showRegister = true }: { showRegister?: boolean }) {
       setError("Email ou mot de passe incorrect.");
       return;
     }
-    router.push("/");
+    router.push(redirectTo);
     router.refresh();
   }
 
@@ -37,7 +45,14 @@ export function LoginForm({ showRegister = true }: { showRegister?: boolean }) {
         <label htmlFor="email" className="text-sm font-medium text-ink">
           Email
         </label>
-        <Input id="email" name="email" type="email" required autoComplete="email" />
+        <Input
+          id="email"
+          name="email"
+          type="email"
+          required
+          autoComplete="email"
+          defaultValue={defaultEmail}
+        />
       </div>
       <div className="flex flex-col gap-1.5">
         <label htmlFor="password" className="text-sm font-medium text-ink">

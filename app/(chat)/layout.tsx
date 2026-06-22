@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { PrivateAccessNotice } from "@/components/auth/PrivateAccessNotice";
 import { ChatShell } from "@/components/sidebar/ChatShell";
 import { listConversations } from "@/lib/db/queries";
 import { isProjectMember } from "@/lib/projects/access";
@@ -14,10 +15,15 @@ export default async function ChatLayout({
   const user = session?.user ?? null;
   const project = await resolveProject();
 
-  // Projet privé : chat réservé aux membres (anonyme ou non-membre → login).
+  // Projet privé : chat réservé aux membres.
+  //  - anonyme → /login
+  //  - connecté mais non-membre → écran « accès réservé » (PAS de redirect vers
+  //    /login : connecté, /login renverrait vers / → boucle infinie).
   if (project?.accessMode === "private") {
     if (!user?.id) redirect("/login");
-    if (!(await isProjectMember(user.id, project.id))) redirect("/login");
+    if (!(await isProjectMember(user.id, project.id))) {
+      return <PrivateAccessNotice projectName={project.name} />;
+    }
   }
 
   const conversations =

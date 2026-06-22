@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { auth } from "@/auth";
+import { LoginForm } from "@/components/auth/LoginForm";
 import { RegisterForm } from "@/components/auth/RegisterForm";
 import { AcceptInvite } from "@/components/projects/AcceptInvite";
 import { getProjectById } from "@/lib/admin/queries";
 import {
+  findUserByEmail,
   getInvitationByTokenHash,
   hashToken,
   isInvitationExpired,
@@ -74,7 +76,9 @@ export default async function InvitePage({
     );
   }
 
-  // Anonyme : inscription pré-remplie (l'invitation est acceptée au signup).
+  // Anonyme : si un compte existe déjà pour cet email → connexion (retour ici
+  // pour accepter) ; sinon → inscription pré-remplie (accept au signup).
+  const existing = await findUserByEmail(inv.email);
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1 text-center">
@@ -82,10 +86,20 @@ export default async function InvitePage({
           Rejoindre {projectName}
         </h1>
         <p className="text-sm text-faint">
-          Créez votre compte pour accepter l&apos;invitation ({inv.role}).
+          {existing
+            ? `Un compte existe déjà avec ${inv.email}. Connectez-vous pour accepter l'invitation (${inv.role}).`
+            : `Créez votre compte pour accepter l'invitation (${inv.role}).`}
         </p>
       </div>
-      <RegisterForm defaultEmail={inv.email} lockEmail />
+      {existing ? (
+        <LoginForm
+          showRegister={false}
+          defaultEmail={inv.email}
+          redirectTo={`/invite/${token}`}
+        />
+      ) : (
+        <RegisterForm defaultEmail={inv.email} lockEmail />
+      )}
     </div>
   );
 }
