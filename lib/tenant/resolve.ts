@@ -1,7 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { headers } from "next/headers";
-import { eq, or } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { type Project, projects } from "@/lib/db/schema";
@@ -33,37 +33,36 @@ function subdomainOf(host: string): string | null {
   return null;
 }
 
+function defaultProject() {
+  return db.query.projects.findFirst({
+    where: eq(projects.slug, env.DEFAULT_PROJECT_SLUG),
+  });
+}
+
 async function loadProjectByHost(host: string | null): Promise<Project | null> {
-  if (!host) {
-    return (
-      (await db.query.projects.findFirst({
-        where: eq(projects.slug, env.DEFAULT_PROJECT_SLUG),
-      })) ?? null
-    );
-  }
+  if (!host) return (await defaultProject()) ?? null;
 
   const sub = subdomainOf(host);
   const hostname = host.toLowerCase().split(":")[0];
 
-  // Sous-domaine du domaine racine → slug ; sinon, host = domaine personnalisé.
-  const project = await db.query.projects.findFirst({
-    where: sub
-      ? eq(projects.slug, sub)
-      : or(
-          eq(projects.customDomain, hostname),
-          eq(projects.slug, env.DEFAULT_PROJECT_SLUG),
-        ),
-  });
-
-  // Domaine racine / www / dev local → projet par défaut.
-  if (!project && !sub) {
+  // Sous-domaine du domaine racine → résolution stricte par slug (un
+  // sous-domaine inconnu reste introuvable, pas de fallback silencieux).
+  if (sub) {
     return (
       (await db.query.projects.findFirst({
-        where: eq(projects.slug, env.DEFAULT_PROJECT_SLUG),
+        where: eq(projects.slug, sub),
       })) ?? null
     );
   }
-  return project ?? null;
+
+  // Sinon (apex, www, ou domaine personnalisé) : on privilégie une
+  // correspondance EXACTE du domaine personnalisé, puis fallback projet par
+  // défaut. (Évite l'ambiguïté de l'ancien OR customDomain/slug-par-défaut qui
+  // pouvait renvoyer le projet par défaut au lieu du bon tenant.)
+  const byDomain = await db.query.projects.findFirst({
+    where: eq(projects.customDomain, hostname),
+  });
+  return byDomain ?? (await defaultProject()) ?? null;
 }
 
 /** Projet courant résolu depuis le host, ou null si aucun ne correspond. */
