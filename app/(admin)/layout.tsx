@@ -1,8 +1,15 @@
+import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { AdminNav } from "@/components/admin/AdminNav";
 import { requirePlatformAdmin } from "@/lib/admin/guard";
 import { CONSOLE_THEME, isConsoleHost } from "@/lib/console";
 import { env } from "@/lib/env";
+
+// Onglet de la console : titre dédié (override du branding tenant) + favicon
+// propre (app/(admin)/icon.svg, badge indigo). Pages enfants → "<page> — Console".
+export const metadata: Metadata = {
+  title: { default: "Console — Ask", template: "%s — Console Ask" },
+};
 
 export default async function AdminLayout({
   children,
