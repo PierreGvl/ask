@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 import { auth } from "@/auth";
 import {
   deleteProjectAction,
@@ -45,10 +46,13 @@ const TYPE_BADGE = {
 
 export default async function ProjectDetail({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
   const { id } = await params;
+  const { tab } = await searchParams;
   const project = await getProjectById(id);
   if (!project) notFound();
 
@@ -361,16 +365,24 @@ export default async function ProjectDetail({
     </Card>
   );
 
-  const tabs = [
-    { key: "identity", label: "Identité & configuration", content: identityTab },
-    { key: "plans", label: "Offre & paliers", content: plansTab },
-    { key: "corpus", label: "Corpus lus par ce tenant", content: corpusTab },
+  const content: Record<string, ReactNode> = {
+    identity: identityTab,
+    plans: plansTab,
+    corpus: corpusTab,
+    members: membersTab,
     // L'onglet Clés API n'a de sens que pour une livraison par widget.
+    ...(project.deliveryMode === "widget" ? { keys: keysTab } : {}),
+  };
+  const tabs = [
+    { key: "identity", label: "Identité & configuration" },
+    { key: "plans", label: "Offre & paliers" },
+    { key: "corpus", label: "Corpus lus par ce tenant" },
     ...(project.deliveryMode === "widget"
-      ? [{ key: "keys", label: "Clés API (widget)", content: keysTab }]
+      ? [{ key: "keys", label: "Clés API (widget)" }]
       : []),
-    { key: "members", label: "Membres & invitations", content: membersTab },
+    { key: "members", label: "Membres & invitations" },
   ];
+  const active = tab && content[tab] ? tab : "identity";
 
   return (
     <div className="flex max-w-4xl flex-col gap-5">
@@ -411,7 +423,12 @@ export default async function ProjectDetail({
         </form>
       </div>
 
-      <ProjectTabs tabs={tabs} />
+      <ProjectTabs
+        basePath={`/admin/projects/${project.id}`}
+        active={active}
+        tabs={tabs}
+      />
+      <div>{content[active]}</div>
     </div>
   );
 }
