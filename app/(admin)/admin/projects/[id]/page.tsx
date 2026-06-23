@@ -135,19 +135,19 @@ export default async function ProjectDetail({
             name="color_navy"
             label="Couleur principale"
             defaultValue={colors.navy ?? ""}
-            placeholder="#141934"
+            placeholder="#1f2937"
           />
           <TextField
             name="color_rose"
             label="Couleur d'accent"
             defaultValue={colors.rose ?? ""}
-            placeholder="#e33170"
+            placeholder="#2563eb"
           />
           <TextField
             name="color_roseLight"
             label="Fond clair"
             defaultValue={colors.roseLight ?? ""}
-            placeholder="#fdeef4"
+            placeholder="#eff6ff"
           />
           <TextField
             name="logoUrl"
