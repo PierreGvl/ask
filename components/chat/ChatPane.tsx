@@ -74,6 +74,8 @@ export function ChatPane({
   }
 
   const empty = messages.length === 0;
+  // Mode widget : chat minimal (pas de hero/suggestions ni branding tenant).
+  const showHero = empty && !embedded;
 
   return (
     <div className="flex h-full flex-col">
@@ -90,7 +92,7 @@ export function ChatPane({
         </div>
       )}
 
-      {empty ? (
+      {showHero ? (
         <div className="scrollbar-thin flex-1 overflow-y-auto">
           <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col items-center justify-center gap-8 px-4 py-8">
             <Greeting />
@@ -102,9 +104,16 @@ export function ChatPane({
         </div>
       ) : (
         <>
-          <div className="scrollbar-thin flex-1 overflow-y-auto">
-            <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8">
-              {messages.map((m, i) => (
+          {empty ? (
+            <div className="flex flex-1 items-center justify-center px-6">
+              <p className="text-center text-sm text-faint">
+                Bonjour&nbsp;! Posez votre question, je vous réponds.
+              </p>
+            </div>
+          ) : (
+            <div className="scrollbar-thin flex-1 overflow-y-auto">
+              <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8">
+                {messages.map((m, i) => (
                 <Message
                   key={m.id}
                   message={m}
@@ -137,12 +146,18 @@ export function ChatPane({
                   </button>
                 </div>
               )}
-              <div ref={bottomRef} />
+                <div ref={bottomRef} />
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="border-t border-line bg-rose-50/80 px-4 py-4 backdrop-blur">
-            <Composer onSend={handleSend} onStop={stop} busy={busy} />
+            <Composer
+              onSend={handleSend}
+              onStop={stop}
+              busy={busy}
+              embedded={embedded}
+            />
           </div>
         </>
       )}

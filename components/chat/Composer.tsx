@@ -14,11 +14,14 @@ export function Composer({
   onStop,
   busy,
   large,
+  embedded,
 }: {
   onSend: (text: string) => void;
   onStop: () => void;
   busy: boolean;
   large?: boolean;
+  /** Widget : textes neutres (ni placeholder ni marque spécifiques au tenant). */
+  embedded?: boolean;
 }) {
   const [value, setValue] = useState("");
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -60,7 +63,9 @@ export function Composer({
           }}
           onKeyDown={onKeyDown}
           rows={1}
-          placeholder="Posez votre question sur le vin…"
+          placeholder={
+            embedded ? "Écrivez votre message…" : "Posez votre question sur le vin…"
+          }
           className={cn(
             "max-h-[240px] flex-1 resize-none bg-transparent px-3 py-2 text-[0.95rem] text-ink placeholder:text-faint focus:outline-none",
             large && "min-h-[96px]",
@@ -87,8 +92,9 @@ export function Composer({
         )}
       </div>
       <p className="mt-2 text-center text-xs text-faint">
-        Ask By la Wine Tech peut faire des erreurs. Vérifiez les informations
-        réglementaires importantes.
+        {embedded
+          ? "L'assistant peut faire des erreurs."
+          : "Ask By la Wine Tech peut faire des erreurs. Vérifiez les informations réglementaires importantes."}
       </p>
     </form>
   );
