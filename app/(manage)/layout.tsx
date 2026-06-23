@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { signOut } from "@/auth";
+import { ToastProvider } from "@/components/ui/Toast";
 import { isConsoleHost } from "@/lib/console";
 import { requireProjectRole } from "@/lib/projects/access";
 import { requireProject } from "@/lib/tenant/resolve";
@@ -27,7 +28,8 @@ export default async function ManageLayout({
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-surface-2 text-ink">
+    <ToastProvider>
+      <div className="flex min-h-dvh flex-col bg-surface-2 text-ink">
       <header className="border-b border-line bg-white">
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-4 py-3">
           <div className="flex items-center gap-4">
@@ -69,6 +71,7 @@ export default async function ManageLayout({
       <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6">
         {children}
       </main>
-    </div>
+      </div>
+    </ToastProvider>
   );
 }
