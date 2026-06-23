@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/Table";
+import { setUserPlanAction } from "@/app/(admin)/admin/actions";
 import type { ProjectRole } from "@/lib/db/schema";
 import {
   type ActionResult,
@@ -20,6 +21,7 @@ type Member = {
   email: string;
   name: string | null;
   role: ProjectRole;
+  planId: string | null;
 };
 
 type Invitation = {
@@ -45,11 +47,14 @@ export function MembersPanel({
   members,
   invitations,
   currentUserId,
+  plans,
 }: {
   projectId: string;
   members: Member[];
   invitations: Invitation[];
   currentUserId: string | null;
+  /** Paliers d'offre (console uniquement) → active la colonne d'assignation. */
+  plans?: { id: string; name: string }[];
 }) {
   const [pending, startTransition] = useTransition();
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(
@@ -129,6 +134,7 @@ export function MembersPanel({
             <TH>Email</TH>
             <TH>Nom</TH>
             <TH>Rôle</TH>
+            {plans && <TH>Palier</TH>}
             <TH />
           </tr>
         </THead>
@@ -164,6 +170,29 @@ export function MembersPanel({
                   <option value="owner">owner</option>
                 </Select>
               </TD>
+              {plans && (
+                <TD>
+                  <Select
+                    defaultValue={m.planId ?? ""}
+                    disabled={pending}
+                    className="h-8 w-36"
+                    onChange={(e) =>
+                      run(
+                        () =>
+                          setUserPlanAction(projectId, m.userId, e.target.value),
+                        "Palier mis à jour.",
+                      )
+                    }
+                  >
+                    <option value="">(défaut)</option>
+                    {plans.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </Select>
+                </TD>
+              )}
               <TD className="text-right">
                 <button
                   type="button"
@@ -183,7 +212,7 @@ export function MembersPanel({
           ))}
           {members.length === 0 && (
             <TR>
-              <TD colSpan={4} className="py-5 text-center text-faint">
+              <TD colSpan={plans ? 5 : 4} className="py-5 text-center text-faint">
                 Aucun membre.
               </TD>
             </TR>

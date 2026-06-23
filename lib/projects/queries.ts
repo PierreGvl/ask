@@ -30,6 +30,7 @@ export type MemberRow = {
   email: string;
   name: string | null;
   role: ProjectRole;
+  planId: string | null;
   createdAt: Date;
 };
 
@@ -40,6 +41,7 @@ export function listProjectMembers(projectId: string): Promise<MemberRow[]> {
       email: users.email,
       name: users.name,
       role: users.role,
+      planId: users.planId,
       createdAt: users.createdAt,
     })
     .from(users)

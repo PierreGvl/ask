@@ -14,7 +14,6 @@ export default async function ManageOverview() {
         <h1 className="text-2xl font-semibold tracking-tight text-navy">
           {project.name}
         </h1>
-        <Badge variant="accent">{project.tier}</Badge>
         <Badge
           variant={project.accessMode === "private" ? "accent" : "neutral"}
         >

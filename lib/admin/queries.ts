@@ -1,26 +1,31 @@
 import "server-only";
-import { and, count, desc, eq, inArray, isNull, max } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNull, max } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   apiKeys,
+  type BillingModel,
   chunks,
   conversations,
   corpora,
   dataSources,
+  type DeliveryMode,
   documents,
-  type LicenseTier,
   type ProjectConfig,
   projectCorpora,
+  type ProjectFeatures,
+  projectPlans,
   type ProjectTheme,
+  type ProjectType,
   projects,
   subscriptions,
   users,
 } from "@/lib/db/schema";
+import { DEFAULT_PLAN_FEATURES } from "@/lib/features/tiers";
 
 // --- Projets (tenants) ---
 
 export function listProjects() {
-  return db.select().from(projects).orderBy(desc(projects.createdAt));
+  return db.select().from(projects).orderBy(asc(projects.number));
 }
 
 export function getProjectById(id: string) {
@@ -76,25 +81,42 @@ export async function projectStats(projectId: string) {
   return { documents: d.n, chunks: c.n };
 }
 
+/** accessMode dérivé du type commercial : seul le B2B est privé. */
+export function accessModeForType(type: ProjectType): "public" | "private" {
+  return type === "b2b" ? "private" : "public";
+}
+
 export async function createProject(input: {
   slug: string;
   name: string;
-  tier: LicenseTier;
+  type: ProjectType;
+  deliveryMode: DeliveryMode;
   customDomain?: string | null;
 }) {
+  const [{ m }] = await db.select({ m: max(projects.number) }).from(projects);
+  const number = (m ?? 0) + 1;
   const [row] = await db
     .insert(projects)
     .values({
       slug: input.slug,
       name: input.name,
-      tier: input.tier,
+      number,
+      type: input.type,
+      deliveryMode: input.deliveryMode,
+      accessMode: accessModeForType(input.type),
+      billingModel: input.type === "b2b" ? "company" : "end_user",
       customDomain: input.customDomain || null,
     })
     .returning({ id: projects.id });
-  await db
-    .insert(subscriptions)
-    .values({ projectId: row.id, tier: input.tier, provider: "manual" });
-  // Tout tenant a d'emblée son corpus privé (ses propres données).
+  // Palier par défaut « Gratuit » (invité/widget) + corpus privé du tenant.
+  await db.insert(projectPlans).values({
+    projectId: row.id,
+    name: "Gratuit",
+    priceCents: 0,
+    features: DEFAULT_PLAN_FEATURES,
+    isDefault: true,
+    sortOrder: 0,
+  });
   await createTenantCorpus(row.id, input.slug, input.name);
   return row.id;
 }
@@ -106,7 +128,10 @@ export async function updateProject(
     slug?: string;
     customDomain?: string | null;
     status?: "active" | "suspended";
+    type?: ProjectType;
     accessMode?: "public" | "private";
+    deliveryMode?: DeliveryMode;
+    billingModel?: BillingModel;
     theme?: ProjectTheme;
     config?: ProjectConfig;
   },
@@ -131,19 +156,64 @@ export async function setProjectAccessMode(
     .where(eq(projects.id, id));
 }
 
-/** Change le tier : nouvel abonnement (vérité) + mise à jour du cache projet. */
-export async function setProjectTier(projectId: string, tier: LicenseTier) {
-  await db
-    .update(subscriptions)
-    .set({ status: "canceled", updatedAt: new Date() })
-    .where(eq(subscriptions.projectId, projectId));
-  await db
-    .insert(subscriptions)
-    .values({ projectId, tier, provider: "manual" });
-  await db
-    .update(projects)
-    .set({ tier, updatedAt: new Date() })
-    .where(eq(projects.id, projectId));
+// --- Paliers d'offre (project_plans) ---
+
+export function listProjectPlans(projectId: string) {
+  return db
+    .select()
+    .from(projectPlans)
+    .where(eq(projectPlans.projectId, projectId))
+    .orderBy(asc(projectPlans.sortOrder), asc(projectPlans.priceCents));
+}
+
+export async function createPlan(input: {
+  projectId: string;
+  name: string;
+  priceCents: number;
+  description?: string | null;
+  features: Partial<ProjectFeatures>;
+}) {
+  await db.insert(projectPlans).values({
+    projectId: input.projectId,
+    name: input.name,
+    priceCents: input.priceCents,
+    description: input.description || null,
+    features: input.features,
+  });
+}
+
+export async function updatePlan(
+  id: string,
+  patch: {
+    name?: string;
+    priceCents?: number;
+    description?: string | null;
+    features?: Partial<ProjectFeatures>;
+  },
+) {
+  await db.update(projectPlans).set(patch).where(eq(projectPlans.id, id));
+}
+
+export async function deletePlan(id: string) {
+  await db.delete(projectPlans).where(eq(projectPlans.id, id));
+}
+
+/** Marque un palier par défaut (un seul par projet). */
+export async function setDefaultPlan(projectId: string, planId: string) {
+  await db.transaction(async (tx) => {
+    await tx
+      .update(projectPlans)
+      .set({ isDefault: false })
+      .where(eq(projectPlans.projectId, projectId));
+    await tx
+      .update(projectPlans)
+      .set({ isDefault: true })
+      .where(eq(projectPlans.id, planId));
+  });
+}
+
+export async function setUserPlan(userId: string, planId: string | null) {
+  await db.update(users).set({ planId }).where(eq(users.id, userId));
 }
 
 export async function insertApiKey(input: {

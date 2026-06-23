@@ -3,7 +3,7 @@ import { z } from "zod";
 import { createChatStream } from "@/lib/chat/engine";
 import type { ChatMessageMetadata } from "@/lib/chat/types";
 import type { Citation, ToolCallTrace } from "@/lib/db/schema";
-import { resolveFeatures } from "@/lib/features/tiers";
+import { resolveProjectFeatures } from "@/lib/features/tiers";
 import type { DeclarationData } from "@/lib/pdf/types";
 import {
   authenticateWidget,
@@ -38,7 +38,9 @@ export async function POST(req: Request) {
   if (!isOriginAllowed(origin, auth.allowedOrigins)) {
     return new Response("Origine non autorisée", { status: 403, headers: cors });
   }
-  if (!resolveFeatures(auth.project).widget) {
+  // Features = palier par défaut du projet (mode invité, pas d'utilisateur).
+  const features = await resolveProjectFeatures(auth.project.id);
+  if (!features.widget) {
     return new Response("Widget non activé pour ce projet", {
       status: 403,
       headers: cors,
@@ -62,6 +64,7 @@ export async function POST(req: Request) {
 
   const result = await createChatStream({
     project: auth.project,
+    features,
     modelMessages: await convertToModelMessages(messages),
     collected,
     toolTraces,

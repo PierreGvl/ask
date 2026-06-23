@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { auth } from "@/auth";
-import { resolveFeatures } from "@/lib/features/tiers";
+import { resolveUserFeatures } from "@/lib/features/tiers";
 import { buildDeclarationPdf } from "@/lib/pdf/declaration";
 import { resolveProject } from "@/lib/tenant/resolve";
 
@@ -24,9 +24,10 @@ export async function POST(req: Request) {
   if (!project || project.status !== "active") {
     return new Response("Projet introuvable", { status: 404 });
   }
-  // Génération de documents = fonctionnalité du tier Domaine.
-  if (!resolveFeatures(project).pdfGeneration) {
-    return new Response("Fonctionnalité non incluse dans votre licence", {
+  // Génération de documents = fonctionnalité du palier de l'utilisateur.
+  const features = await resolveUserFeatures(session.user.id, project.id);
+  if (!features.pdfGeneration) {
+    return new Response("Fonctionnalité non incluse dans votre palier", {
       status: 403,
     });
   }

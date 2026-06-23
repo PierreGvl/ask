@@ -5,8 +5,12 @@ import {
   streamText,
   type ToolSet,
 } from "ai";
-import { resolveFeatures } from "@/lib/features/tiers";
-import type { Citation, Project, ToolCallTrace } from "@/lib/db/schema";
+import type {
+  Citation,
+  Project,
+  ProjectFeatures,
+  ToolCallTrace,
+} from "@/lib/db/schema";
 import { chatModel } from "@/lib/llm/models";
 import { buildSystemPrompt } from "@/lib/llm/prompts";
 import { getCorpusIdsForProject } from "@/lib/rag/corpus-sources";
@@ -23,16 +27,17 @@ import type { DeclarationData } from "@/lib/pdf/types";
  */
 export async function createChatStream(opts: {
   project: Project;
+  /** Fonctionnalités EFFECTIVES (palier de l'utilisateur, ou défaut du projet). */
+  features: ProjectFeatures;
   modelMessages: ModelMessage[];
   collected: Citation[];
   toolTraces: ToolCallTrace[];
   seenSources: Set<string>;
-  /** Déclarations générées (tier Domaine), exposées en métadonnée message. */
+  /** Déclarations générées (PDF), exposées en métadonnée message. */
   declarations?: DeclarationData[];
   onFinish?: (text: string) => Promise<void> | void;
 }) {
-  const { project, collected, toolTraces, seenSources } = opts;
-  const features = resolveFeatures(project);
+  const { project, features, collected, toolTraces, seenSources } = opts;
   const webEnabled = features.webSearch && isWebSearchConfigured();
   const pdfEnabled = features.pdfGeneration;
 

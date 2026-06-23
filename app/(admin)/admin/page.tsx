@@ -10,10 +10,15 @@ import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/Table";
 import { listProjects, overviewCounts } from "@/lib/admin/queries";
 
-const TIER_BADGE = {
-  free: "neutral",
-  pro: "accent",
-  domaine: "accent",
+const TYPE_LABEL = {
+  white_label: "White Label",
+  b2b: "B2B",
+  b2c: "B2C",
+} as const;
+const TYPE_BADGE = {
+  white_label: "accent",
+  b2b: "warning",
+  b2c: "neutral",
 } as const;
 
 export default async function AdminDashboard() {
@@ -66,15 +71,17 @@ export default async function AdminDashboard() {
         <Table>
           <THead>
             <tr>
+              <TH>#</TH>
               <TH>Nom</TH>
               <TH>Slug</TH>
-              <TH>Tier</TH>
+              <TH>Type</TH>
               <TH>Statut</TH>
             </tr>
           </THead>
           <TBody>
             {projects.slice(0, 6).map((p) => (
               <TR key={p.id}>
+                <TD className="font-mono text-xs text-faint">{p.number ?? "—"}</TD>
                 <TD>
                   <Link
                     href={`/admin/projects/${p.id}`}
@@ -85,7 +92,7 @@ export default async function AdminDashboard() {
                 </TD>
                 <TD className="font-mono text-xs text-faint">{p.slug}</TD>
                 <TD>
-                  <Badge variant={TIER_BADGE[p.tier]}>{p.tier}</Badge>
+                  <Badge variant={TYPE_BADGE[p.type]}>{TYPE_LABEL[p.type]}</Badge>
                 </TD>
                 <TD>
                   <Badge variant={p.status === "active" ? "success" : "warning"}>
@@ -96,7 +103,7 @@ export default async function AdminDashboard() {
             ))}
             {projects.length === 0 && (
               <TR>
-                <TD colSpan={4} className="py-6 text-center text-faint">
+                <TD colSpan={5} className="py-6 text-center text-faint">
                   Aucun projet.
                 </TD>
               </TR>

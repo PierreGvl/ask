@@ -46,7 +46,8 @@ export function proxy(req: NextRequest) {
       isPublicAsset ||
       path.startsWith("/admin") ||
       path.startsWith("/api") ||
-      path.startsWith("/login");
+      path.startsWith("/login") ||
+      path.startsWith("/embed"); // prévisualisation widget dans la console
     if (!allowed) {
       return withSecurity(
         NextResponse.redirect(new URL("/admin", req.url)),

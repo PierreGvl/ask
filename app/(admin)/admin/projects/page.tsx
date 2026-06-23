@@ -1,11 +1,21 @@
 import Link from "next/link";
 import { NewProjectDialog } from "@/components/admin/NewProjectDialog";
+import { WidgetTestModal } from "@/components/admin/WidgetTestModal";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/Table";
 import { listProjects } from "@/lib/admin/queries";
 
-const TIER_BADGE = { free: "neutral", pro: "accent", domaine: "accent" } as const;
+const TYPE_LABEL = {
+  white_label: "White Label",
+  b2b: "B2B",
+  b2c: "B2C",
+} as const;
+const TYPE_BADGE = {
+  white_label: "accent",
+  b2b: "warning",
+  b2c: "neutral",
+} as const;
 
 export default async function ProjectsPage() {
   const projects = await listProjects();
@@ -22,16 +32,18 @@ export default async function ProjectsPage() {
         <Table>
           <THead>
             <tr>
+              <TH>#</TH>
               <TH>Nom</TH>
               <TH>Slug</TH>
-              <TH>Tier</TH>
+              <TH>Type</TH>
               <TH>Statut</TH>
-              <TH>Domaine custom</TH>
+              <TH>Accès / Domaine</TH>
             </tr>
           </THead>
           <TBody>
             {projects.map((p) => (
               <TR key={p.id}>
+                <TD className="font-mono text-xs text-faint">{p.number ?? "—"}</TD>
                 <TD>
                   <Link
                     href={`/admin/projects/${p.id}`}
@@ -42,19 +54,34 @@ export default async function ProjectsPage() {
                 </TD>
                 <TD className="font-mono text-xs text-faint">{p.slug}</TD>
                 <TD>
-                  <Badge variant={TIER_BADGE[p.tier]}>{p.tier}</Badge>
+                  <Badge variant={TYPE_BADGE[p.type]}>{TYPE_LABEL[p.type]}</Badge>
                 </TD>
                 <TD>
                   <Badge variant={p.status === "active" ? "success" : "warning"}>
                     {p.status}
                   </Badge>
                 </TD>
-                <TD className="text-faint">{p.customDomain ?? "—"}</TD>
+                <TD>
+                  {p.deliveryMode === "widget" ? (
+                    <WidgetTestModal projectId={p.id} projectName={p.name} />
+                  ) : p.customDomain ? (
+                    <a
+                      href={`https://${p.customDomain}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-rose hover:underline"
+                    >
+                      {p.customDomain} ↗
+                    </a>
+                  ) : (
+                    <span className="text-xs text-faint">—</span>
+                  )}
+                </TD>
               </TR>
             ))}
             {projects.length === 0 && (
               <TR>
-                <TD colSpan={5} className="py-6 text-center text-faint">
+                <TD colSpan={6} className="py-6 text-center text-faint">
                   Aucun projet.
                 </TD>
               </TR>

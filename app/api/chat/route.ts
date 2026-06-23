@@ -11,6 +11,10 @@ import {
 } from "@/lib/db/queries";
 import type { Citation, ToolCallTrace } from "@/lib/db/schema";
 import { env } from "@/lib/env";
+import {
+  resolveProjectFeatures,
+  resolveUserFeatures,
+} from "@/lib/features/tiers";
 import { generateTitle } from "@/lib/llm/title";
 import type { DeclarationData } from "@/lib/pdf/types";
 import { isProjectMember } from "@/lib/projects/access";
@@ -97,8 +101,14 @@ export async function POST(req: Request) {
     });
   }
 
+  // Bridage par palier : features de l'utilisateur connecté, sinon palier défaut.
+  const features = userId
+    ? await resolveUserFeatures(userId, project.id)
+    : await resolveProjectFeatures(project.id);
+
   const result = await createChatStream({
     project,
+    features,
     modelMessages: await convertToModelMessages(messages),
     collected,
     toolTraces,

@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   index,
   integer,
   jsonb,
@@ -14,6 +15,16 @@ import {
 
 export const PROJECT_ROLES = ["owner", "admin", "member"] as const;
 export type ProjectRole = (typeof PROJECT_ROLES)[number];
+
+// Type commercial du projet → pilote l'accès (WL & B2C = public ; B2B = privé).
+export const PROJECT_TYPES = ["white_label", "b2b", "b2c"] as const;
+export type ProjectType = (typeof PROJECT_TYPES)[number];
+// Mode de livraison : interface web hébergée, ou widget (clé API à intégrer).
+export const DELIVERY_MODES = ["hosted", "widget"] as const;
+export type DeliveryMode = (typeof DELIVERY_MODES)[number];
+// Modèle de facturation : l'entreprise paie, ou les utilisateurs (paliers).
+export const BILLING_MODELS = ["company", "end_user"] as const;
+export type BillingModel = (typeof BILLING_MODELS)[number];
 
 /** Une source citée dans une réponse de l'assistant. */
 export type Citation = {
@@ -74,15 +85,27 @@ export const projects = pgTable("projects", {
   id: uuid("id").defaultRandom().primaryKey(),
   slug: text("slug").notNull().unique(), // routing sous-domaine : winetech, hervai…
   name: text("name").notNull(),
+  // Numéro lisible par ordre de création (#1 = winetech).
+  number: integer("number"),
   status: text("status", { enum: ["active", "suspended"] })
     .notNull()
     .default("active"),
-  // Contrôle d'accès au chat tenant : 'public' = ouvert à tous (Wine Tech,
-  // imprimeur) ; 'private' = login + appartenance requis (HervAI).
+  // Type commercial → pilote accessMode (white_label/b2c = public ; b2b = privé).
+  type: text("type", { enum: PROJECT_TYPES }).notNull().default("b2c"),
+  // Contrôle d'accès au chat tenant : 'public' = ouvert à tous ; 'private' =
+  // login + appartenance requis. Dérivé de `type` à l'enregistrement.
   accessMode: text("access_mode", { enum: ["public", "private"] })
     .notNull()
     .default("public"),
-  // tier dénormalisé (cache) ; la table subscriptions est la source de vérité
+  // Livraison : site web hébergé, ou widget (clé API sur un site existant).
+  deliveryMode: text("delivery_mode", { enum: DELIVERY_MODES })
+    .notNull()
+    .default("hosted"),
+  // Facturation : abonnement entreprise, ou paliers utilisateur.
+  billingModel: text("billing_model", { enum: BILLING_MODELS })
+    .notNull()
+    .default("end_user"),
+  // DORMANT : ancien tier free/pro/domaine, remplacé par les paliers (project_plans).
   tier: text("tier", { enum: ["free", "pro", "domaine"] })
     .notNull()
     .default("free"),
@@ -99,6 +122,29 @@ export const projects = pgTable("projects", {
     .notNull(),
 });
 
+// --- Paliers d'offre d'un projet (remplacent le tier free/pro/domaine) ---
+// Catalogue : un plan « entreprise » (B2B/WL), ou N paliers utilisateur (B2C/WL).
+// `features` = fonctionnalités incluses ; `isDefault` = palier invité/widget.
+export const projectPlans = pgTable(
+  "project_plans",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    priceCents: integer("price_cents").notNull().default(0),
+    description: text("description"),
+    features: jsonb("features").$type<Partial<ProjectFeatures>>(),
+    isDefault: boolean("is_default").notNull().default(false),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [index("project_plans_project_idx").on(t.projectId)],
+);
+
 // --- Comptes utilisateurs : CLOISONNÉS PAR TENANT (marque blanche) ---
 // Identité = (projectId, email). Le même email peut exister, indépendamment,
 // sur plusieurs tenants. Le rôle (owner/admin/member) vit ici (plus de table
@@ -114,6 +160,10 @@ export const users = pgTable(
     passwordHash: text("password_hash").notNull(),
     name: text("name"),
     role: text("role", { enum: PROJECT_ROLES }).notNull().default("member"),
+    // Palier souscrit (null → palier par défaut du projet).
+    planId: uuid("plan_id").references(() => projectPlans.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -400,6 +450,7 @@ export type DocumentRow = typeof documents.$inferSelect;
 export type Chunk = typeof chunks.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type PlatformAdmin = typeof platformAdmins.$inferSelect;
+export type ProjectPlan = typeof projectPlans.$inferSelect;
 export type ProjectInvitation = typeof projectInvitations.$inferSelect;
 export type Corpus = typeof corpora.$inferSelect;
 export type ProjectCorpus = typeof projectCorpora.$inferSelect;

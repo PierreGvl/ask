@@ -6,17 +6,54 @@ import { requirePlatformAdmin } from "@/lib/admin/guard";
 import { generateApiKey } from "@/lib/admin/api-keys";
 import * as pa from "@/lib/admin/platform-admins";
 import * as q from "@/lib/admin/queries";
-import type { LicenseTier, ProjectConfig, ProjectTheme } from "@/lib/db/schema";
-
-const TIERS: LicenseTier[] = ["free", "pro", "domaine"];
-
-function asTier(v: FormDataEntryValue | null): LicenseTier {
-  const s = String(v);
-  return (TIERS as string[]).includes(s) ? (s as LicenseTier) : "free";
-}
+import {
+  BILLING_MODELS,
+  type BillingModel,
+  DELIVERY_MODES,
+  type DeliveryMode,
+  PROJECT_TYPES,
+  type ProjectConfig,
+  type ProjectFeatures,
+  type ProjectTheme,
+  type ProjectType,
+} from "@/lib/db/schema";
 
 function str(v: FormDataEntryValue | null): string {
   return typeof v === "string" ? v.trim() : "";
+}
+
+function asType(v: FormDataEntryValue | null): ProjectType {
+  const s = String(v);
+  return (PROJECT_TYPES as readonly string[]).includes(s)
+    ? (s as ProjectType)
+    : "b2c";
+}
+
+function asDelivery(v: FormDataEntryValue | null): DeliveryMode {
+  const s = String(v);
+  return (DELIVERY_MODES as readonly string[]).includes(s)
+    ? (s as DeliveryMode)
+    : "hosted";
+}
+
+function asBilling(v: FormDataEntryValue | null): BillingModel {
+  const s = String(v);
+  return (BILLING_MODELS as readonly string[]).includes(s)
+    ? (s as BillingModel)
+    : "end_user";
+}
+
+const FEATURE_KEYS = [
+  "customRag",
+  "webSearch",
+  "pdfGeneration",
+  "widget",
+] as const;
+
+function readFeatures(formData: FormData): Partial<ProjectFeatures> {
+  const f: Partial<ProjectFeatures> = {};
+  for (const k of FEATURE_KEYS) f[k] = formData.get(`feat_${k}`) === "on";
+  return f;
 }
 
 export async function createProjectAction(formData: FormData) {
@@ -27,7 +64,8 @@ export async function createProjectAction(formData: FormData) {
   const id = await q.createProject({
     slug,
     name,
-    tier: asTier(formData.get("tier")),
+    type: asType(formData.get("type")),
+    deliveryMode: asDelivery(formData.get("deliveryMode")),
     customDomain: str(formData.get("customDomain")) || null,
   });
   revalidatePath("/admin/projects");
@@ -66,13 +104,16 @@ export async function updateProjectAction(formData: FormData) {
       str(formData.get("searchToolDescription")) || undefined,
   };
 
+  const type = asType(formData.get("type"));
   await q.updateProject(id, {
     name: str(formData.get("name")) || existing.name,
     slug: str(formData.get("slug")) || existing.slug,
     customDomain: str(formData.get("customDomain")) || null,
     status: formData.get("status") === "suspended" ? "suspended" : "active",
-    accessMode:
-      formData.get("accessMode") === "private" ? "private" : "public",
+    type,
+    accessMode: q.accessModeForType(type), // dérivé du type commercial
+    deliveryMode: asDelivery(formData.get("deliveryMode")),
+    billingModel: asBilling(formData.get("billingModel")),
     theme,
     config,
   });
@@ -86,11 +127,75 @@ export async function deleteProjectAction(formData: FormData) {
   redirect("/admin/projects");
 }
 
-export async function setTierAction(formData: FormData) {
+// --- Paliers d'offre ---
+
+export async function createPlanAction(formData: FormData) {
   await requirePlatformAdmin();
-  const id = str(formData.get("id"));
-  await q.setProjectTier(id, asTier(formData.get("tier")));
-  revalidatePath(`/admin/projects/${id}`);
+  const projectId = str(formData.get("projectId"));
+  const name = str(formData.get("name"));
+  if (!name) throw new Error("nom requis");
+  await q.createPlan({
+    projectId,
+    name,
+    priceCents: Math.max(0, Math.round(Number(formData.get("priceEur")) * 100) || 0),
+    description: str(formData.get("description")) || null,
+    features: readFeatures(formData),
+  });
+  revalidatePath(`/admin/projects/${projectId}`);
+}
+
+export async function updatePlanAction(formData: FormData) {
+  await requirePlatformAdmin();
+  const projectId = str(formData.get("projectId"));
+  await q.updatePlan(str(formData.get("id")), {
+    name: str(formData.get("name")) || undefined,
+    priceCents: Math.max(0, Math.round(Number(formData.get("priceEur")) * 100) || 0),
+    description: str(formData.get("description")) || null,
+    features: readFeatures(formData),
+  });
+  revalidatePath(`/admin/projects/${projectId}`);
+}
+
+export async function deletePlanAction(formData: FormData) {
+  await requirePlatformAdmin();
+  const projectId = str(formData.get("projectId"));
+  await q.deletePlan(str(formData.get("id")));
+  revalidatePath(`/admin/projects/${projectId}`);
+}
+
+export async function setDefaultPlanAction(formData: FormData) {
+  await requirePlatformAdmin();
+  const projectId = str(formData.get("projectId"));
+  await q.setDefaultPlan(projectId, str(formData.get("id")));
+  revalidatePath(`/admin/projects/${projectId}`);
+}
+
+/** Assigne un palier à un utilisateur (depuis la console). */
+export async function setUserPlanAction(
+  projectId: string,
+  userId: string,
+  planId: string,
+): Promise<{ ok: boolean }> {
+  await requirePlatformAdmin();
+  await q.setUserPlan(userId, planId || null);
+  revalidatePath(`/admin/projects/${projectId}`);
+  return { ok: true };
+}
+
+/** Clé API de test éphémère pour prévisualiser le widget dans la console. */
+export async function mintWidgetTestKeyAction(
+  projectId: string,
+): Promise<{ key: string }> {
+  await requirePlatformAdmin();
+  const key = generateApiKey();
+  await q.insertApiKey({
+    projectId,
+    name: "[console-test]",
+    keyHash: key.keyHash,
+    prefix: key.prefix,
+    allowedOrigins: [], // vide = toutes origines (iframe console)
+  });
+  return { key: key.plaintext };
 }
 
 export async function createPlatformAdminAction(formData: FormData) {

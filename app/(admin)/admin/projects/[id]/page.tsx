@@ -5,11 +5,11 @@ import {
   deleteProjectAction,
   linkCorpusAction,
   revokeApiKeyAction,
-  setTierAction,
   unlinkCorpusAction,
   updateProjectAction,
 } from "@/app/(admin)/admin/actions";
 import { ApiKeyCreator } from "@/components/admin/ApiKeyCreator";
+import { PlansEditor } from "@/components/admin/PlansEditor";
 import { MembersPanel } from "@/components/projects/MembersPanel";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -22,6 +22,7 @@ import {
   getProjectById,
   listApiKeys,
   listProjectCorpora,
+  listProjectPlans,
   listSharedCorpora,
   projectStats,
 } from "@/lib/admin/queries";
@@ -30,7 +31,16 @@ import {
   listProjectMembers,
 } from "@/lib/projects/queries";
 
-const TIER_BADGE = { free: "neutral", pro: "accent", domaine: "accent" } as const;
+const TYPE_LABEL = {
+  white_label: "White Label",
+  b2b: "B2B",
+  b2c: "B2C",
+} as const;
+const TYPE_BADGE = {
+  white_label: "accent",
+  b2b: "warning",
+  b2c: "neutral",
+} as const;
 
 export default async function ProjectDetail({
   params,
@@ -48,6 +58,7 @@ export default async function ProjectDetail({
     invitations,
     readCorpora,
     sharedCorpora,
+    plans,
     session,
   ] = await Promise.all([
     listApiKeys(id),
@@ -56,6 +67,7 @@ export default async function ProjectDetail({
     listPendingInvitations(id),
     listProjectCorpora(id),
     listSharedCorpora(),
+    listProjectPlans(id),
     auth(),
   ]);
   // Candidats à l'abonnement : corpus partagés que le tenant ne lit pas encore.
@@ -73,8 +85,10 @@ export default async function ProjectDetail({
             {project.name}
           </h1>
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="font-mono text-faint">{project.slug}</span>
-            <Badge variant={TIER_BADGE[project.tier]}>{project.tier}</Badge>
+            <span className="font-mono text-faint">#{project.number} · {project.slug}</span>
+            <Badge variant={TYPE_BADGE[project.type]}>
+              {TYPE_LABEL[project.type]}
+            </Badge>
             <Badge variant={project.status === "active" ? "success" : "warning"}>
               {project.status}
             </Badge>
@@ -82,6 +96,9 @@ export default async function ProjectDetail({
               variant={project.accessMode === "private" ? "accent" : "neutral"}
             >
               {project.accessMode === "private" ? "privé" : "public"}
+            </Badge>
+            <Badge variant="neutral">
+              {project.deliveryMode === "widget" ? "widget" : "hébergé"}
             </Badge>
             <span className="text-faint">
               {stats.documents} docs · {stats.chunks} chunks
@@ -96,26 +113,17 @@ export default async function ProjectDetail({
         </form>
       </div>
 
-      {/* Licence */}
+      {/* Offre & paliers */}
       <Card>
         <CardHeader>
-          <CardTitle>Licence (tier)</CardTitle>
+          <CardTitle>Offre & paliers</CardTitle>
         </CardHeader>
         <CardBody>
-          <form action={setTierAction} className="flex flex-wrap items-end gap-3">
-            <input type="hidden" name="id" value={project.id} />
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-faint">Tier actuel : {project.tier}</span>
-              <Select name="tier" defaultValue={project.tier} className="w-40">
-                <option value="free">free</option>
-                <option value="pro">pro</option>
-                <option value="domaine">domaine</option>
-              </Select>
-            </label>
-            <Button type="submit" variant="outline">
-              Changer le tier
-            </Button>
-          </form>
+          <PlansEditor
+            projectId={project.id}
+            billingModel={project.billingModel}
+            plans={plans}
+          />
         </CardBody>
       </Card>
 
@@ -145,10 +153,27 @@ export default async function ProjectDetail({
               </Select>
             </label>
             <label className="flex flex-col gap-1 text-sm">
-              <span className="text-faint">Accès au chat</span>
-              <Select name="accessMode" defaultValue={project.accessMode}>
-                <option value="public">public (ouvert à tous)</option>
-                <option value="private">privé (membres invités)</option>
+              <span className="text-faint">
+                Type (pilote l&apos;accès : B2B = privé)
+              </span>
+              <Select name="type" defaultValue={project.type}>
+                <option value="b2c">B2C (public)</option>
+                <option value="white_label">White Label (public)</option>
+                <option value="b2b">B2B (privé)</option>
+              </Select>
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-faint">Mode de livraison</span>
+              <Select name="deliveryMode" defaultValue={project.deliveryMode}>
+                <option value="hosted">Site hébergé</option>
+                <option value="widget">Widget (clé API)</option>
+              </Select>
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-faint">Modèle de facturation</span>
+              <Select name="billingModel" defaultValue={project.billingModel}>
+                <option value="end_user">Paliers utilisateur</option>
+                <option value="company">Abonnement entreprise</option>
               </Select>
             </label>
             <TextField
@@ -316,6 +341,7 @@ export default async function ProjectDetail({
             members={members}
             invitations={invitations}
             currentUserId={session?.user?.id ?? null}
+            plans={plans.map((p) => ({ id: p.id, name: p.name }))}
           />
         </CardBody>
       </Card>
