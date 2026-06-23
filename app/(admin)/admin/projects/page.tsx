@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/Table";
 import { listProjects } from "@/lib/admin/queries";
+import { env } from "@/lib/env";
 
 const TYPE_LABEL = {
   white_label: "White Label",
@@ -16,6 +17,14 @@ const TYPE_BADGE = {
   b2b: "warning",
   b2c: "neutral",
 } as const;
+
+/** URL publique du chat d'un projet hébergé (domaine perso, base ou sous-domaine). */
+function liveUrl(p: { slug: string; customDomain: string | null }): string {
+  if (p.customDomain) return `https://${p.customDomain}`;
+  if (p.slug === env.DEFAULT_PROJECT_SLUG)
+    return `https://${env.APP_BASE_DOMAIN}`;
+  return `https://${p.slug.toLowerCase()}.${env.APP_BASE_DOMAIN}`;
+}
 
 export default async function ProjectsPage() {
   const projects = await listProjects();
@@ -64,17 +73,15 @@ export default async function ProjectsPage() {
                 <TD>
                   {p.deliveryMode === "widget" ? (
                     <WidgetTestModal projectId={p.id} projectName={p.name} />
-                  ) : p.customDomain ? (
+                  ) : (
                     <a
-                      href={`https://${p.customDomain}`}
+                      href={liveUrl(p)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-xs text-rose hover:underline"
                     >
-                      {p.customDomain} ↗
+                      {liveUrl(p).replace("https://", "")} ↗
                     </a>
-                  ) : (
-                    <span className="text-xs text-faint">—</span>
                   )}
                 </TD>
               </TR>
