@@ -1,4 +1,3 @@
-import Link from "next/link";
 import {
   createCorpusAction,
   createDataSourceAction,
@@ -14,8 +13,8 @@ import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/Table";
 import {
   corpusReaders,
   corpusStats,
-  listAllDataSources,
   listCorpora,
+  listCorpusDataSources,
 } from "@/lib/admin/queries";
 
 const DATA_SOURCE_KINDS = [
@@ -31,17 +30,15 @@ function fmtDate(d: Date | null) {
 }
 
 export default async function CorpusPage() {
-  const [sources, corpora] = await Promise.all([
-    listAllDataSources(),
-    listCorpora(),
-  ]);
-  // Maps corpus → lecteurs (tenants) + stats, pour enrichir la vue par source.
-  const [readersEntries, statsEntries] = await Promise.all([
-    Promise.all(corpora.map(async (c) => [c.id, await corpusReaders(c.id)] as const)),
-    Promise.all(corpora.map(async (c) => [c.id, await corpusStats(c.id)] as const)),
-  ]);
-  const readersByCorpus = new Map(readersEntries);
-  const statsByCorpus = new Map(statsEntries);
+  const list = await listCorpora();
+  const corpora = await Promise.all(
+    list.map(async (c) => ({
+      ...c,
+      stats: await corpusStats(c.id),
+      readers: await corpusReaders(c.id),
+      sources: await listCorpusDataSources(c.id),
+    })),
+  );
 
   return (
     <div className="flex max-w-5xl flex-col gap-5">
@@ -50,215 +47,171 @@ export default async function CorpusPage() {
           Corpus
         </h1>
         <p className="text-sm text-faint">
-          Toutes les sources de données qui alimentent le RAG, et les corpus qui
-          les regroupent (partagés par domaine, ou privés d&apos;un tenant).
+          Chaque corpus (partagé par domaine, ou privé d&apos;un tenant) est
+          alimenté par une ou plusieurs sources de données.
         </p>
       </div>
 
-      {/* Vue À PLAT : toutes les sources de données */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Sources de données</CardTitle>
-        </CardHeader>
-        <CardBody className="flex flex-col gap-4">
-          <Table>
-            <THead>
-              <tr>
-                <TH>Source</TH>
-                <TH>Type</TH>
-                <TH>Description</TH>
-                <TH>Corpus</TH>
-                <TH>Utilisé par</TH>
-                <TH>Sous-corpus</TH>
-                <TH>Docs</TH>
-                <TH>Statut</TH>
-                <TH>Dernière sync</TH>
-                <TH />
-              </tr>
-            </THead>
-            <TBody>
-              {sources.map((s) => {
-                const readers = readersByCorpus.get(s.corpusId) ?? [];
-                return (
-                  <TR key={s.id}>
-                    <TD className="font-medium text-navy-700">{s.name}</TD>
-                    <TD className="font-mono text-xs">{s.kind}</TD>
-                    <TD className="max-w-[16rem] text-xs text-faint">
-                      {s.description ?? "—"}
-                    </TD>
-                    <TD>
-                      <span className="flex items-center gap-1">
-                        {s.corpusName}
-                        <Badge variant={s.corpusOwner === null ? "accent" : "neutral"}>
-                          {s.corpusOwner === null ? "partagé" : "privé"}
-                        </Badge>
-                      </span>
-                    </TD>
-                    <TD className="text-xs text-faint">
-                      {readers.length === 0
-                        ? "—"
-                        : readers.map((r) => r.name).join(", ")}
-                    </TD>
-                    <TD className="text-xs text-faint">{s.domain ?? "—"}</TD>
-                    <TD>{s.docCount}</TD>
-                    <TD>
-                      <Badge
-                        variant={
-                          s.status === "error"
-                            ? "danger"
-                            : s.status === "syncing"
-                              ? "accent"
-                              : "neutral"
-                        }
-                      >
-                        {s.status}
-                      </Badge>
-                    </TD>
-                    <TD className="text-xs text-faint">
-                      {fmtDate(s.lastSyncedAt)}
-                    </TD>
-                    <TD className="whitespace-nowrap text-right">
-                      <form action={resyncDataSourceAction} className="inline">
-                        <input type="hidden" name="id" value={s.id} />
-                        <button
-                          type="submit"
-                          className="mr-3 text-xs font-medium text-navy-700 hover:text-rose hover:underline"
-                        >
-                          Re-sync
-                        </button>
-                      </form>
-                      <form action={deleteDataSourceAction} className="inline">
-                        <input type="hidden" name="id" value={s.id} />
-                        <button
-                          type="submit"
-                          className="text-xs text-faint hover:text-rose"
-                        >
-                          Suppr.
-                        </button>
-                      </form>
-                    </TD>
-                  </TR>
-                );
-              })}
-              {sources.length === 0 && (
-                <TR>
-                  <TD colSpan={10} className="py-5 text-center text-faint">
-                    Aucune source de données.
-                  </TD>
-                </TR>
+      {corpora.map((c) => {
+        const shared = c.ownerProjectId === null;
+        return (
+          <Card key={c.id}>
+            <CardHeader>
+              <div className="flex flex-wrap items-center gap-2">
+                <CardTitle>{c.name}</CardTitle>
+                <Badge variant={shared ? "accent" : "neutral"}>
+                  {shared ? "partagé" : "privé"}
+                </Badge>
+                {!shared && c.ownerName && (
+                  <span className="text-xs text-faint">
+                    propriétaire : {c.ownerName}
+                  </span>
+                )}
+                <span className="font-mono text-xs text-faint">{c.slug}</span>
+              </div>
+            </CardHeader>
+            <CardBody className="flex flex-col gap-3">
+              {c.description && (
+                <p className="text-sm text-faint">{c.description}</p>
               )}
-            </TBody>
-          </Table>
-
-          {/* Ajouter une source (à un corpus) */}
-          <form
-            action={createDataSourceAction}
-            className="grid gap-3 border-t border-line pt-4 sm:grid-cols-5"
-          >
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-faint">Corpus</span>
-              <Select name="corpusId" required>
-                {corpora.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </Select>
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-faint">Nom</span>
-              <Input name="name" placeholder="Légifrance AOC" required />
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-faint">Type</span>
-              <Select name="kind">
-                {DATA_SOURCE_KINDS.map((k) => (
-                  <option key={k} value={k}>
-                    {k}
-                  </option>
-                ))}
-              </Select>
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-faint">Sous-corpus</span>
-              <Input name="domain" placeholder="reglementaire" />
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-faint">Description</span>
-              <Input name="description" placeholder="Articles AOC…" />
-            </label>
-            <div className="sm:col-span-5">
-              <Button type="submit" variant="outline">
-                Ajouter une source
-              </Button>
-            </div>
-          </form>
-          <p className="text-xs text-faint">
-            « Re-sync » marque la source à resynchroniser ; l&apos;ingestion
-            réelle est CLI :{" "}
-            <code className="font-mono">npm run ingest -- --corpus &lt;slug&gt;</code>.
-          </p>
-        </CardBody>
-      </Card>
-
-      {/* Gestion des corpus */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Corpus</CardTitle>
-        </CardHeader>
-        <CardBody className="flex flex-col gap-4">
-          <Table>
-            <THead>
-              <tr>
-                <TH>Corpus</TH>
-                <TH>Slug</TH>
-                <TH>Type</TH>
-                <TH>Propriétaire</TH>
-                <TH>Lu par</TH>
-                <TH>Docs / chunks</TH>
-                <TH>Dernière ingestion</TH>
-              </tr>
-            </THead>
-            <TBody>
-              {corpora.map((c) => {
-                const shared = c.ownerProjectId === null;
-                const st = statsByCorpus.get(c.id);
-                const rd = readersByCorpus.get(c.id) ?? [];
-                return (
-                  <TR key={c.id}>
-                    <TD className="font-medium text-navy-700">{c.name}</TD>
-                    <TD className="font-mono text-xs text-faint">{c.slug}</TD>
-                    <TD>
-                      <Badge variant={shared ? "accent" : "neutral"}>
-                        {shared ? "partagé" : "privé"}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-faint">
+                <span>
+                  {c.stats.documents} docs · {c.stats.chunks} chunks
+                </span>
+                <span>
+                  Dernière ingestion : {fmtDate(c.stats.lastIngestedAt)}
+                </span>
+                <span className="flex flex-wrap items-center gap-1">
+                  Lu par :
+                  {c.readers.length === 0 ? (
+                    <span>—</span>
+                  ) : (
+                    c.readers.map((r) => (
+                      <Badge key={r.id} variant="neutral">
+                        {r.name}
                       </Badge>
-                    </TD>
-                    <TD className="text-xs text-faint">{c.ownerName ?? "—"}</TD>
-                    <TD className="text-xs text-faint">
-                      {rd.length === 0 ? "—" : rd.map((r) => r.name).join(", ")}
-                    </TD>
-                    <TD className="text-xs text-faint">
-                      {st ? `${st.documents} / ${st.chunks}` : "—"}
-                    </TD>
-                    <TD className="text-xs text-faint">
-                      {fmtDate(st?.lastIngestedAt ?? null)}
-                    </TD>
-                  </TR>
-                );
-              })}
-            </TBody>
-          </Table>
-          <p className="text-xs text-faint">
-            Les corpus privés se gèrent depuis la fiche du{" "}
-            <Link href="/admin/projects" className="text-rose hover:underline">
-              projet
-            </Link>{" "}
-            (abonnement aux corpus partagés).
-          </p>
-        </CardBody>
-      </Card>
+                    ))
+                  )}
+                </span>
+              </div>
 
-      {/* Nouveau corpus partagé */}
+              <Table>
+                <THead>
+                  <tr>
+                    <TH>Source de données</TH>
+                    <TH>Type</TH>
+                    <TH>Description</TH>
+                    <TH>Sous-corpus</TH>
+                    <TH>Docs</TH>
+                    <TH>Statut</TH>
+                    <TH>Dernière sync</TH>
+                    <TH />
+                  </tr>
+                </THead>
+                <TBody>
+                  {c.sources.map((s) => (
+                    <TR key={s.id}>
+                      <TD className="font-medium text-navy-700">{s.name}</TD>
+                      <TD className="font-mono text-xs">{s.kind}</TD>
+                      <TD className="max-w-[16rem] text-xs text-faint">
+                        {s.description ?? "—"}
+                      </TD>
+                      <TD className="text-xs text-faint">{s.domain ?? "—"}</TD>
+                      <TD>{s.docCount}</TD>
+                      <TD>
+                        <Badge
+                          variant={
+                            s.status === "error"
+                              ? "danger"
+                              : s.status === "syncing"
+                                ? "accent"
+                                : "neutral"
+                          }
+                        >
+                          {s.status}
+                        </Badge>
+                      </TD>
+                      <TD className="text-xs text-faint">
+                        {fmtDate(s.lastSyncedAt)}
+                      </TD>
+                      <TD className="whitespace-nowrap text-right">
+                        <form action={resyncDataSourceAction} className="inline">
+                          <input type="hidden" name="id" value={s.id} />
+                          <button
+                            type="submit"
+                            className="mr-3 text-xs font-medium text-navy-700 hover:text-rose hover:underline"
+                          >
+                            Re-sync
+                          </button>
+                        </form>
+                        <form action={deleteDataSourceAction} className="inline">
+                          <input type="hidden" name="id" value={s.id} />
+                          <button
+                            type="submit"
+                            className="text-xs text-faint hover:text-rose"
+                          >
+                            Suppr.
+                          </button>
+                        </form>
+                      </TD>
+                    </TR>
+                  ))}
+                  {c.sources.length === 0 && (
+                    <TR>
+                      <TD colSpan={8} className="py-4 text-center text-faint">
+                        Aucune source de données.
+                      </TD>
+                    </TR>
+                  )}
+                </TBody>
+              </Table>
+
+              <form
+                action={createDataSourceAction}
+                className="grid gap-3 border-t border-line pt-4 sm:grid-cols-4"
+              >
+                <input type="hidden" name="corpusId" value={c.id} />
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-faint">Nom</span>
+                  <Input name="name" placeholder="Légifrance AOC" required />
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-faint">Type</span>
+                  <Select name="kind">
+                    {DATA_SOURCE_KINDS.map((k) => (
+                      <option key={k} value={k}>
+                        {k}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-faint">Sous-corpus</span>
+                  <Input name="domain" placeholder="reglementaire" />
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-faint">Description</span>
+                  <Input name="description" placeholder="Articles AOC…" />
+                </label>
+                <div className="sm:col-span-4">
+                  <Button type="submit" variant="outline">
+                    Ajouter une source à ce corpus
+                  </Button>
+                </div>
+              </form>
+              <p className="text-xs text-faint">
+                « Re-sync » marque la source à resynchroniser ; l&apos;ingestion
+                réelle est CLI :{" "}
+                <code className="font-mono">
+                  npm run ingest -- --corpus {c.slug}
+                </code>
+                .
+              </p>
+            </CardBody>
+          </Card>
+        );
+      })}
+
       <Card>
         <CardHeader>
           <CardTitle>Nouveau corpus partagé</CardTitle>
@@ -267,7 +220,11 @@ export default async function CorpusPage() {
           <form action={createCorpusAction} className="grid gap-3 sm:grid-cols-2">
             <label className="flex flex-col gap-1 text-sm">
               <span className="text-faint">Nom</span>
-              <Input name="name" placeholder="Réglementation agriculture" required />
+              <Input
+                name="name"
+                placeholder="Réglementation agriculture"
+                required
+              />
             </label>
             <label className="flex flex-col gap-1 text-sm">
               <span className="text-faint">Slug</span>

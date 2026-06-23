@@ -1,10 +1,7 @@
 import Link from "next/link";
-import { createProjectAction } from "@/app/(admin)/admin/actions";
+import { NewProjectDialog } from "@/components/admin/NewProjectDialog";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
-import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
+import { Card } from "@/components/ui/Card";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/Table";
 import { listProjects } from "@/lib/admin/queries";
 
@@ -14,7 +11,12 @@ export default async function ProjectsPage() {
   const projects = await listProjects();
   return (
     <div className="flex flex-col gap-5">
-      <h1 className="text-2xl font-semibold tracking-tight text-navy">Projets</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold tracking-tight text-navy">
+          Projets
+        </h1>
+        <NewProjectDialog />
+      </div>
 
       <Card>
         <Table>
@@ -60,56 +62,6 @@ export default async function ProjectsPage() {
           </TBody>
         </Table>
       </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Nouveau projet</CardTitle>
-        </CardHeader>
-        <CardBody>
-          <form
-            action={createProjectAction}
-            className="grid gap-3 sm:grid-cols-2"
-          >
-            <Field name="name" label="Nom" placeholder="HervAI" required />
-            <Field name="slug" label="Slug" placeholder="hervai" required />
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-faint">Tier</span>
-              <Select name="tier" defaultValue="free">
-                <option value="free">free</option>
-                <option value="pro">pro</option>
-                <option value="domaine">domaine</option>
-              </Select>
-            </label>
-            <Field
-              name="customDomain"
-              label="Domaine personnalisé (optionnel)"
-              placeholder="ask.hervai.fr"
-            />
-            <div className="sm:col-span-2">
-              <Button type="submit">Créer le projet</Button>
-            </div>
-          </form>
-        </CardBody>
-      </Card>
     </div>
-  );
-}
-
-function Field({
-  name,
-  label,
-  placeholder,
-  required,
-}: {
-  name: string;
-  label: string;
-  placeholder?: string;
-  required?: boolean;
-}) {
-  return (
-    <label className="flex flex-col gap-1 text-sm">
-      <span className="text-faint">{label}</span>
-      <Input name={name} placeholder={placeholder} required={required} />
-    </label>
   );
 }

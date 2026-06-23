@@ -192,27 +192,6 @@ export function getCorpusById(id: string) {
   return db.query.corpora.findFirst({ where: eq(corpora.id, id) });
 }
 
-/** Toutes les sources de données de la plateforme (vue à plat par source). */
-export function listAllDataSources() {
-  return db
-    .select({
-      id: dataSources.id,
-      name: dataSources.name,
-      kind: dataSources.kind,
-      description: dataSources.description,
-      domain: dataSources.domain,
-      status: dataSources.status,
-      docCount: dataSources.docCount,
-      lastSyncedAt: dataSources.lastSyncedAt,
-      corpusId: corpora.id,
-      corpusName: corpora.name,
-      corpusOwner: corpora.ownerProjectId,
-    })
-    .from(dataSources)
-    .innerJoin(corpora, eq(corpora.id, dataSources.corpusId))
-    .orderBy(corpora.name, desc(dataSources.createdAt));
-}
-
 export function listCorpusDataSources(corpusId: string) {
   return db
     .select()
