@@ -34,7 +34,16 @@ export function proxy(req: NextRequest) {
     .toLowerCase();
 
   if (consoleHost && host === consoleHost) {
+    // Assets de métadonnées (favicon, manifeste…) servis à la racine : à laisser
+    // passer, sinon ils sont redirigés vers /admin (pas de favicon console).
+    const isPublicAsset =
+      path.startsWith("/icon") ||
+      path.startsWith("/apple-icon") ||
+      path === "/manifest.webmanifest" ||
+      path === "/robots.txt" ||
+      path === "/sitemap.xml";
     const allowed =
+      isPublicAsset ||
       path.startsWith("/admin") ||
       path.startsWith("/api") ||
       path.startsWith("/login");
