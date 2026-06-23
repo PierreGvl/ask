@@ -10,10 +10,11 @@ import {
 } from "@/app/(admin)/admin/actions";
 import { ApiKeyCreator } from "@/components/admin/ApiKeyCreator";
 import { PlansEditor } from "@/components/admin/PlansEditor";
+import { ProjectTabs } from "@/components/admin/ProjectTabs";
 import { MembersPanel } from "@/components/projects/MembersPanel";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Card, CardBody } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/Table";
@@ -76,6 +77,301 @@ export default async function ProjectDetail({
   const cfg = project.config ?? {};
   const colors = project.theme?.colors ?? {};
 
+  // --- Contenu des onglets (rendus serveur, basculés côté client) ---
+
+  const identityTab = (
+    <Card>
+      <CardBody>
+        <form action={updateProjectAction} className="grid gap-3 sm:grid-cols-2">
+          <input type="hidden" name="id" value={project.id} />
+          <TextField name="name" label="Nom" defaultValue={project.name} />
+          <TextField name="slug" label="Slug" defaultValue={project.slug} />
+          <TextField
+            name="customDomain"
+            label="Domaine personnalisé"
+            defaultValue={project.customDomain ?? ""}
+          />
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-faint">Statut</span>
+            <Select name="status" defaultValue={project.status}>
+              <option value="active">active</option>
+              <option value="suspended">suspended</option>
+            </Select>
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-faint">
+              Type (pilote l&apos;accès : B2B = privé)
+            </span>
+            <Select name="type" defaultValue={project.type}>
+              <option value="b2c">B2C (public)</option>
+              <option value="white_label">White Label (public)</option>
+              <option value="b2b">B2B (privé)</option>
+            </Select>
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-faint">Mode de livraison</span>
+            <Select name="deliveryMode" defaultValue={project.deliveryMode}>
+              <option value="hosted">Site hébergé</option>
+              <option value="widget">Widget (clé API)</option>
+            </Select>
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-faint">Modèle de facturation</span>
+            <Select name="billingModel" defaultValue={project.billingModel}>
+              <option value="end_user">Paliers utilisateur</option>
+              <option value="company">Abonnement entreprise</option>
+            </Select>
+          </label>
+          <TextField
+            name="color_navy"
+            label="Couleur principale (navy)"
+            defaultValue={colors.navy ?? ""}
+            placeholder="#141934"
+          />
+          <TextField
+            name="color_rose"
+            label="Couleur accent (rose)"
+            defaultValue={colors.rose ?? ""}
+            placeholder="#e33170"
+          />
+          <TextField
+            name="color_roseLight"
+            label="Fond clair (roseLight)"
+            defaultValue={colors.roseLight ?? ""}
+            placeholder="#fdeef4"
+          />
+          <TextField
+            name="logoUrl"
+            label="URL du logo"
+            defaultValue={project.theme?.logoUrl ?? ""}
+            placeholder="/logo.png"
+          />
+          <TextField
+            name="defaultDomain"
+            label="Sous-corpus par défaut"
+            defaultValue={cfg.defaultDomain ?? ""}
+            placeholder="reglementaire"
+          />
+          <AreaField
+            name="greeting"
+            label="Message d'accueil"
+            defaultValue={cfg.greeting ?? ""}
+          />
+          <AreaField
+            name="systemPrompt"
+            label="Prompt système (persona métier)"
+            defaultValue={cfg.systemPrompt ?? ""}
+            rows={5}
+            full
+          />
+          <AreaField
+            name="searchToolDescription"
+            label="Description de l'outil de recherche"
+            defaultValue={cfg.searchToolDescription ?? ""}
+            full
+          />
+          <AreaField
+            name="suggestions"
+            label="Suggestions (une par ligne)"
+            defaultValue={(cfg.suggestions ?? []).join("\n")}
+            rows={4}
+            full
+          />
+          <div className="sm:col-span-2">
+            <Button type="submit">Enregistrer</Button>
+          </div>
+        </form>
+      </CardBody>
+    </Card>
+  );
+
+  const plansTab = (
+    <Card>
+      <CardBody>
+        <PlansEditor
+          projectId={project.id}
+          billingModel={project.billingModel}
+          plans={plans}
+        />
+      </CardBody>
+    </Card>
+  );
+
+  const corpusTab = (
+    <Card>
+      <CardBody className="flex flex-col gap-4">
+        <p className="text-xs text-faint">
+          Le chat de ce tenant puise dans les corpus ci-dessous : son corpus
+          privé + les corpus partagés abonnés. La gestion des sources de données
+          se fait dans l&apos;onglet{" "}
+          <Link href="/admin/corpus" className="text-rose hover:underline">
+            Corpus
+          </Link>
+          .
+        </p>
+        <Table>
+          <THead>
+            <tr>
+              <TH>Corpus</TH>
+              <TH>Type</TH>
+              <TH />
+            </tr>
+          </THead>
+          <TBody>
+            {readCorpora.map((c) => {
+              const isPrivate = c.ownerProjectId === project.id;
+              return (
+                <TR key={c.corpusId}>
+                  <TD className="font-medium text-navy-700">{c.name}</TD>
+                  <TD>
+                    <Badge variant={isPrivate ? "neutral" : "accent"}>
+                      {isPrivate ? "privé" : "partagé"}
+                    </Badge>
+                  </TD>
+                  <TD className="text-right">
+                    {!isPrivate && (
+                      <form action={unlinkCorpusAction} className="inline">
+                        <input
+                          type="hidden"
+                          name="projectId"
+                          value={project.id}
+                        />
+                        <input
+                          type="hidden"
+                          name="corpusId"
+                          value={c.corpusId}
+                        />
+                        <button
+                          type="submit"
+                          className="text-xs text-faint hover:text-rose"
+                        >
+                          Désabonner
+                        </button>
+                      </form>
+                    )}
+                  </TD>
+                </TR>
+              );
+            })}
+            {readCorpora.length === 0 && (
+              <TR>
+                <TD colSpan={3} className="py-5 text-center text-faint">
+                  Aucun corpus.
+                </TD>
+              </TR>
+            )}
+          </TBody>
+        </Table>
+        {candidateCorpora.length > 0 && (
+          <form
+            action={linkCorpusAction}
+            className="flex flex-wrap items-end gap-3 border-t border-line pt-4"
+          >
+            <input type="hidden" name="projectId" value={project.id} />
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-faint">Abonner à un corpus partagé</span>
+              <Select name="corpusId" className="w-56">
+                {candidateCorpora.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <Button type="submit" variant="outline">
+              Abonner
+            </Button>
+          </form>
+        )}
+      </CardBody>
+    </Card>
+  );
+
+  const keysTab = (
+    <Card>
+      <CardBody className="flex flex-col gap-4">
+        <Table>
+          <THead>
+            <tr>
+              <TH>Nom</TH>
+              <TH>Préfixe</TH>
+              <TH>Origines</TH>
+              <TH>État</TH>
+              <TH />
+            </tr>
+          </THead>
+          <TBody>
+            {apiKeys.map((k) => (
+              <TR key={k.id}>
+                <TD className="font-medium text-navy-700">{k.name}</TD>
+                <TD className="font-mono text-xs">{k.prefix}…</TD>
+                <TD className="text-xs text-faint">
+                  {(k.allowedOrigins ?? []).join(", ") || "—"}
+                </TD>
+                <TD>
+                  {k.revokedAt ? (
+                    <Badge>révoquée</Badge>
+                  ) : (
+                    <Badge variant="success">active</Badge>
+                  )}
+                </TD>
+                <TD className="text-right">
+                  {!k.revokedAt && (
+                    <form action={revokeApiKeyAction} className="inline">
+                      <input type="hidden" name="id" value={k.id} />
+                      <input type="hidden" name="projectId" value={project.id} />
+                      <button
+                        type="submit"
+                        className="text-xs text-faint hover:text-rose"
+                      >
+                        Révoquer
+                      </button>
+                    </form>
+                  )}
+                </TD>
+              </TR>
+            ))}
+            {apiKeys.length === 0 && (
+              <TR>
+                <TD colSpan={5} className="py-5 text-center text-faint">
+                  Aucune clé.
+                </TD>
+              </TR>
+            )}
+          </TBody>
+        </Table>
+        <div className="border-t border-line pt-4">
+          <ApiKeyCreator projectId={project.id} />
+        </div>
+      </CardBody>
+    </Card>
+  );
+
+  const membersTab = (
+    <Card>
+      <CardBody>
+        <MembersPanel
+          projectId={project.id}
+          members={members}
+          invitations={invitations}
+          currentUserId={session?.user?.id ?? null}
+          plans={plans.map((p) => ({ id: p.id, name: p.name }))}
+        />
+      </CardBody>
+    </Card>
+  );
+
+  const tabs = [
+    { key: "identity", label: "Identité & configuration", content: identityTab },
+    { key: "plans", label: "Offre & paliers", content: plansTab },
+    { key: "corpus", label: "Corpus lus par ce tenant", content: corpusTab },
+    // L'onglet Clés API n'a de sens que pour une livraison par widget.
+    ...(project.deliveryMode === "widget"
+      ? [{ key: "keys", label: "Clés API (widget)", content: keysTab }]
+      : []),
+    { key: "members", label: "Membres & invitations", content: membersTab },
+  ];
+
   return (
     <div className="flex max-w-4xl flex-col gap-5">
       {/* En-tête */}
@@ -85,7 +381,9 @@ export default async function ProjectDetail({
             {project.name}
           </h1>
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="font-mono text-faint">#{project.number} · {project.slug}</span>
+            <span className="font-mono text-faint">
+              #{project.number} · {project.slug}
+            </span>
             <Badge variant={TYPE_BADGE[project.type]}>
               {TYPE_LABEL[project.type]}
             </Badge>
@@ -113,304 +411,7 @@ export default async function ProjectDetail({
         </form>
       </div>
 
-      {/* Offre & paliers */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Offre & paliers</CardTitle>
-        </CardHeader>
-        <CardBody>
-          <PlansEditor
-            projectId={project.id}
-            billingModel={project.billingModel}
-            plans={plans}
-          />
-        </CardBody>
-      </Card>
-
-      {/* Identité & configuration */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Identité & configuration</CardTitle>
-        </CardHeader>
-        <CardBody>
-          <form
-            action={updateProjectAction}
-            className="grid gap-3 sm:grid-cols-2"
-          >
-            <input type="hidden" name="id" value={project.id} />
-            <TextField name="name" label="Nom" defaultValue={project.name} />
-            <TextField name="slug" label="Slug" defaultValue={project.slug} />
-            <TextField
-              name="customDomain"
-              label="Domaine personnalisé"
-              defaultValue={project.customDomain ?? ""}
-            />
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-faint">Statut</span>
-              <Select name="status" defaultValue={project.status}>
-                <option value="active">active</option>
-                <option value="suspended">suspended</option>
-              </Select>
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-faint">
-                Type (pilote l&apos;accès : B2B = privé)
-              </span>
-              <Select name="type" defaultValue={project.type}>
-                <option value="b2c">B2C (public)</option>
-                <option value="white_label">White Label (public)</option>
-                <option value="b2b">B2B (privé)</option>
-              </Select>
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-faint">Mode de livraison</span>
-              <Select name="deliveryMode" defaultValue={project.deliveryMode}>
-                <option value="hosted">Site hébergé</option>
-                <option value="widget">Widget (clé API)</option>
-              </Select>
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-faint">Modèle de facturation</span>
-              <Select name="billingModel" defaultValue={project.billingModel}>
-                <option value="end_user">Paliers utilisateur</option>
-                <option value="company">Abonnement entreprise</option>
-              </Select>
-            </label>
-            <TextField
-              name="color_navy"
-              label="Couleur principale (navy)"
-              defaultValue={colors.navy ?? ""}
-              placeholder="#141934"
-            />
-            <TextField
-              name="color_rose"
-              label="Couleur accent (rose)"
-              defaultValue={colors.rose ?? ""}
-              placeholder="#e33170"
-            />
-            <TextField
-              name="color_roseLight"
-              label="Fond clair (roseLight)"
-              defaultValue={colors.roseLight ?? ""}
-              placeholder="#fdeef4"
-            />
-            <TextField
-              name="logoUrl"
-              label="URL du logo"
-              defaultValue={project.theme?.logoUrl ?? ""}
-              placeholder="/logo.png"
-            />
-            <TextField
-              name="defaultDomain"
-              label="Sous-corpus par défaut"
-              defaultValue={cfg.defaultDomain ?? ""}
-              placeholder="reglementaire"
-            />
-            <AreaField
-              name="greeting"
-              label="Message d'accueil"
-              defaultValue={cfg.greeting ?? ""}
-            />
-            <AreaField
-              name="systemPrompt"
-              label="Prompt système (persona métier)"
-              defaultValue={cfg.systemPrompt ?? ""}
-              rows={5}
-              full
-            />
-            <AreaField
-              name="searchToolDescription"
-              label="Description de l'outil de recherche"
-              defaultValue={cfg.searchToolDescription ?? ""}
-              full
-            />
-            <AreaField
-              name="suggestions"
-              label="Suggestions (une par ligne)"
-              defaultValue={(cfg.suggestions ?? []).join("\n")}
-              rows={4}
-              full
-            />
-            <div className="sm:col-span-2">
-              <Button type="submit">Enregistrer</Button>
-            </div>
-          </form>
-        </CardBody>
-      </Card>
-
-      {/* Corpus lus par ce tenant */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Corpus lus par ce tenant</CardTitle>
-        </CardHeader>
-        <CardBody className="flex flex-col gap-4">
-          <p className="text-xs text-faint">
-            Le chat de ce tenant puise dans les corpus ci-dessous : son corpus
-            privé + les corpus partagés abonnés. La gestion des sources de
-            données se fait dans l&apos;onglet{" "}
-            <Link href="/admin/corpus" className="text-rose hover:underline">
-              Corpus
-            </Link>
-            .
-          </p>
-          <Table>
-            <THead>
-              <tr>
-                <TH>Corpus</TH>
-                <TH>Type</TH>
-                <TH />
-              </tr>
-            </THead>
-            <TBody>
-              {readCorpora.map((c) => {
-                const isPrivate = c.ownerProjectId === project.id;
-                return (
-                  <TR key={c.corpusId}>
-                    <TD className="font-medium text-navy-700">{c.name}</TD>
-                    <TD>
-                      <Badge variant={isPrivate ? "neutral" : "accent"}>
-                        {isPrivate ? "privé" : "partagé"}
-                      </Badge>
-                    </TD>
-                    <TD className="text-right">
-                      {!isPrivate && (
-                        <form action={unlinkCorpusAction} className="inline">
-                          <input
-                            type="hidden"
-                            name="projectId"
-                            value={project.id}
-                          />
-                          <input
-                            type="hidden"
-                            name="corpusId"
-                            value={c.corpusId}
-                          />
-                          <button
-                            type="submit"
-                            className="text-xs text-faint hover:text-rose"
-                          >
-                            Désabonner
-                          </button>
-                        </form>
-                      )}
-                    </TD>
-                  </TR>
-                );
-              })}
-              {readCorpora.length === 0 && (
-                <TR>
-                  <TD colSpan={3} className="py-5 text-center text-faint">
-                    Aucun corpus.
-                  </TD>
-                </TR>
-              )}
-            </TBody>
-          </Table>
-          {candidateCorpora.length > 0 && (
-            <form
-              action={linkCorpusAction}
-              className="flex flex-wrap items-end gap-3 border-t border-line pt-4"
-            >
-              <input type="hidden" name="projectId" value={project.id} />
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-faint">Abonner à un corpus partagé</span>
-                <Select name="corpusId" className="w-56">
-                  {candidateCorpora.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </Select>
-              </label>
-              <Button type="submit" variant="outline">
-                Abonner
-              </Button>
-            </form>
-          )}
-        </CardBody>
-      </Card>
-
-      {/* Membres & invitations */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Membres & invitations</CardTitle>
-        </CardHeader>
-        <CardBody>
-          <MembersPanel
-            projectId={project.id}
-            members={members}
-            invitations={invitations}
-            currentUserId={session?.user?.id ?? null}
-            plans={plans.map((p) => ({ id: p.id, name: p.name }))}
-          />
-        </CardBody>
-      </Card>
-
-      {/* Clés API */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Clés API (widget)</CardTitle>
-        </CardHeader>
-        <CardBody className="flex flex-col gap-4">
-          <Table>
-            <THead>
-              <tr>
-                <TH>Nom</TH>
-                <TH>Préfixe</TH>
-                <TH>Origines</TH>
-                <TH>État</TH>
-                <TH />
-              </tr>
-            </THead>
-            <TBody>
-              {apiKeys.map((k) => (
-                <TR key={k.id}>
-                  <TD className="font-medium text-navy-700">{k.name}</TD>
-                  <TD className="font-mono text-xs">{k.prefix}…</TD>
-                  <TD className="text-xs text-faint">
-                    {(k.allowedOrigins ?? []).join(", ") || "—"}
-                  </TD>
-                  <TD>
-                    {k.revokedAt ? (
-                      <Badge>révoquée</Badge>
-                    ) : (
-                      <Badge variant="success">active</Badge>
-                    )}
-                  </TD>
-                  <TD className="text-right">
-                    {!k.revokedAt && (
-                      <form action={revokeApiKeyAction} className="inline">
-                        <input type="hidden" name="id" value={k.id} />
-                        <input
-                          type="hidden"
-                          name="projectId"
-                          value={project.id}
-                        />
-                        <button
-                          type="submit"
-                          className="text-xs text-faint hover:text-rose"
-                        >
-                          Révoquer
-                        </button>
-                      </form>
-                    )}
-                  </TD>
-                </TR>
-              ))}
-              {apiKeys.length === 0 && (
-                <TR>
-                  <TD colSpan={5} className="py-5 text-center text-faint">
-                    Aucune clé.
-                  </TD>
-                </TR>
-              )}
-            </TBody>
-          </Table>
-          <div className="border-t border-line pt-4">
-            <ApiKeyCreator projectId={project.id} />
-          </div>
-        </CardBody>
-      </Card>
+      <ProjectTabs tabs={tabs} />
     </div>
   );
 }
