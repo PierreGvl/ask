@@ -18,7 +18,9 @@ export async function GET(
   return new Response(new Uint8Array(asset.bytes), {
     headers: {
       "Content-Type": asset.mime,
-      "Cache-Control": "public, max-age=31536000, immutable",
+      // Revalidation courte (le `?v=` busté à chaque upload évite le stale) :
+      // pas d'`immutable` pour ne jamais figer une réponse erronée côté client.
+      "Cache-Control": "public, max-age=60, must-revalidate",
       "Last-Modified": asset.updatedAt.toUTCString(),
     },
   });
