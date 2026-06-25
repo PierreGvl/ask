@@ -120,31 +120,38 @@ export async function updateProjectAction(formData: FormData) {
   revalidatePath(`/admin/projects/${id}`);
 }
 
-const MAX_LOGO_BYTES = 2 * 1024 * 1024; // 2 Mo
+const MAX_ASSET_BYTES = 2 * 1024 * 1024; // 2 Mo
 
-/** Téléverse le logo d'un projet (stocké en base) et met à jour theme.logoUrl. */
-export async function uploadProjectLogoAction(formData: FormData) {
+/**
+ * Téléverse un asset image d'un projet (logo ou favicon), stocké en base, et
+ * pointe le champ de thème correspondant (logoUrl/faviconUrl) vers la route
+ * /api/assets avec un cache-bust `?v=`.
+ */
+export async function uploadProjectImageAction(formData: FormData) {
   await requirePlatformAdmin();
   const projectId = str(formData.get("projectId"));
+  const kind = str(formData.get("kind")) === "favicon" ? "favicon" : "logo";
+  const label = kind === "favicon" ? "Le favicon" : "Le logo";
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
     throw new Error("Fichier requis.");
   }
   if (!file.type.startsWith("image/")) {
-    throw new Error("Le logo doit être une image.");
+    throw new Error(`${label} doit être une image.`);
   }
-  if (file.size > MAX_LOGO_BYTES) {
-    throw new Error("Logo trop lourd (max 2 Mo).");
+  if (file.size > MAX_ASSET_BYTES) {
+    throw new Error(`${label} est trop lourd (max 2 Mo).`);
   }
   const project = await q.getProjectById(projectId);
   if (!project) throw new Error("projet introuvable");
 
   const bytes = Buffer.from(await file.arrayBuffer());
-  await q.upsertProjectAsset({ projectId, kind: "logo", mime: file.type, bytes });
+  await q.upsertProjectAsset({ projectId, kind, mime: file.type, bytes });
   // `?v=` (mtime) force le rafraîchissement des caches navigateur/Image.
-  const logoUrl = `/api/assets/${projectId}/logo?v=${Date.now()}`;
+  const url = `/api/assets/${projectId}/${kind}?v=${Date.now()}`;
+  const themeKey = kind === "favicon" ? "faviconUrl" : "logoUrl";
   await q.updateProject(projectId, {
-    theme: { ...(project.theme ?? {}), logoUrl },
+    theme: { ...(project.theme ?? {}), [themeKey]: url },
   });
   revalidatePath(`/admin/projects/${projectId}`);
 }

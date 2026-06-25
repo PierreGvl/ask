@@ -64,6 +64,7 @@ export type WordmarkPart = {
 export type ProjectTheme = {
   colors?: Record<string, string>; // ex. { navy: "#141934", rose: "#e33170" }
   logoUrl?: string | null;
+  faviconUrl?: string | null; // icône onglet/apple, servie par /api/assets
   wordmark?: { parts: WordmarkPart[] };
   fonts?: { sans?: string; serif?: string };
 };

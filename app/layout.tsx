@@ -13,11 +13,17 @@ const cormorant = Cormorant_Garamond({
 });
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { name, description } = getBranding(await resolveProject());
+  const project = await resolveProject();
+  const { name, description, faviconUrl } = getBranding(project);
   return {
     title: name,
     description,
     applicationName: name,
+    icons: {
+      icon: faviconUrl,
+      // Faute d'asset dédié, on réutilise le favicon du projet (sinon l'icône iOS par défaut).
+      apple: project?.theme?.faviconUrl || "/apple-icon.png",
+    },
     appleWebApp: { capable: true, title: name, statusBarStyle: "default" },
     other: {
       // Compatibilité iOS plus anciens (plein écran depuis l'écran d'accueil)

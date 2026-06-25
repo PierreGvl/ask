@@ -2,28 +2,32 @@
 
 import { ImageUp } from "lucide-react";
 import { useState, useTransition } from "react";
-import { uploadProjectLogoAction } from "@/app/(admin)/admin/actions";
+import { uploadProjectImageAction } from "@/app/(admin)/admin/actions";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 
 const MAX_BYTES = 2 * 1024 * 1024;
 
 /**
- * Téléversement du logo d'un projet (stocké en base, servi par /api/assets).
- * Aperçu local avant envoi + validation client (l'action serveur reste l'autorité).
+ * Téléversement d'un asset image d'un projet (logo ou favicon), stocké en base
+ * et servi par /api/assets. Aperçu local + validation client (l'action serveur
+ * reste l'autorité).
  */
-export function LogoUploader({
+export function AssetUploader({
   projectId,
-  currentLogoUrl,
+  kind,
+  currentUrl,
 }: {
   projectId: string;
-  currentLogoUrl: string | null;
+  kind: "logo" | "favicon";
+  currentUrl: string | null;
 }) {
   const { show } = useToast();
   const [pending, start] = useTransition();
   const [preview, setPreview] = useState<string | null>(null);
   const [hasFile, setHasFile] = useState(false);
-  const shown = preview ?? currentLogoUrl;
+  const shown = preview ?? currentUrl;
+  const noun = kind === "favicon" ? "Le favicon" : "Le logo";
 
   function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -33,12 +37,12 @@ export function LogoUploader({
       return;
     }
     if (!f.type.startsWith("image/")) {
-      show("Le logo doit être une image.", "err");
+      show(`${noun} doit être une image.`, "err");
       e.target.value = "";
       return;
     }
     if (f.size > MAX_BYTES) {
-      show("Logo trop lourd (max 2 Mo).", "err");
+      show(`${noun} est trop lourd (max 2 Mo).`, "err");
       e.target.value = "";
       return;
     }
@@ -49,8 +53,11 @@ export function LogoUploader({
   function submit(formData: FormData) {
     start(async () => {
       try {
-        await uploadProjectLogoAction(formData);
-        show("Logo mis à jour", "ok");
+        await uploadProjectImageAction(formData);
+        show(
+          kind === "favicon" ? "Favicon mis à jour" : "Logo mis à jour",
+          "ok",
+        );
         setPreview(null);
         setHasFile(false);
       } catch {
@@ -62,14 +69,11 @@ export function LogoUploader({
   return (
     <form action={submit} className="flex items-center gap-4">
       <input type="hidden" name="projectId" value={projectId} />
+      <input type="hidden" name="kind" value={kind} />
       <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-line bg-surface-2">
         {shown ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={shown}
-            alt="Logo"
-            className="h-full w-full object-contain"
-          />
+          <img src={shown} alt={kind} className="h-full w-full object-contain" />
         ) : (
           <ImageUp className="h-6 w-6 text-faint" />
         )}
@@ -88,7 +92,11 @@ export function LogoUploader({
           variant="outline"
           disabled={pending || !hasFile}
         >
-          {pending ? "Envoi…" : "Téléverser le logo"}
+          {pending
+            ? "Envoi…"
+            : kind === "favicon"
+              ? "Téléverser le favicon"
+              : "Téléverser le logo"}
         </Button>
       </div>
     </form>

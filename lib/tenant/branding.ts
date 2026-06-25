@@ -11,6 +11,7 @@ export type Branding = {
   name: string;
   description: string;
   logoUrl: string;
+  faviconUrl: string;
   greeting: string;
   suggestions: string[];
   /** Absent → le Wordmark rend sa version par défaut figée. */
@@ -24,6 +25,7 @@ export const DEFAULT_BRANDING: Branding = {
   name: "Ask by La Wine Tech",
   description: DEFAULT_DESCRIPTION,
   logoUrl: "/logo.png",
+  faviconUrl: "/icon.png",
   greeting: GREETING,
   suggestions: SUGGESTIONS,
   wordmark: null,
@@ -39,6 +41,7 @@ export function getBranding(project: Project | null): Branding {
     // Pas encore de description par projet : tagline par défaut pour l'instant.
     description: DEFAULT_DESCRIPTION,
     logoUrl: theme.logoUrl || DEFAULT_BRANDING.logoUrl,
+    faviconUrl: theme.faviconUrl || DEFAULT_BRANDING.faviconUrl,
     greeting: cfg.greeting || DEFAULT_BRANDING.greeting,
     suggestions:
       cfg.suggestions && cfg.suggestions.length

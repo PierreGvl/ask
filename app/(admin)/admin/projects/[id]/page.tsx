@@ -10,7 +10,7 @@ import {
   updateProjectAction,
 } from "@/app/(admin)/admin/actions";
 import { ApiKeyCreator } from "@/components/admin/ApiKeyCreator";
-import { LogoUploader } from "@/components/admin/LogoUploader";
+import { AssetUploader } from "@/components/admin/AssetUploader";
 import { PlansEditor } from "@/components/admin/PlansEditor";
 import { ProjectTabs } from "@/components/admin/ProjectTabs";
 import { MembersPanel } from "@/components/projects/MembersPanel";
@@ -88,14 +88,27 @@ export default async function ProjectDetail({
   const identityTab = (
     <Card>
       <CardBody className="flex flex-col gap-5">
-        <div className="flex flex-col gap-2">
-          <span className="text-xs font-medium uppercase tracking-wide text-faint">
-            Logo
-          </span>
-          <LogoUploader
-            projectId={project.id}
-            currentLogoUrl={project.theme?.logoUrl ?? null}
-          />
+        <div className="grid gap-5 sm:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <span className="text-xs font-medium uppercase tracking-wide text-faint">
+              Logo
+            </span>
+            <AssetUploader
+              projectId={project.id}
+              kind="logo"
+              currentUrl={project.theme?.logoUrl ?? null}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="text-xs font-medium uppercase tracking-wide text-faint">
+              Favicon (onglet navigateur)
+            </span>
+            <AssetUploader
+              projectId={project.id}
+              kind="favicon"
+              currentUrl={project.theme?.faviconUrl ?? null}
+            />
+          </div>
         </div>
         <ToastForm
           action={updateProjectAction}
