@@ -58,11 +58,20 @@ async function main() {
 
   const existing = await db.query.projects.findFirst({
     where: eq(projects.slug, hervai.slug),
-    columns: { id: true },
+    columns: { id: true, theme: true },
   });
 
   let projectId: string;
   if (existing) {
+    // Préserve les assets gérés depuis la console (logo/favicon uploadés) :
+    // le seed ne doit jamais effacer ce qui a été personnalisé en prod.
+    const theme = {
+      ...hervai.theme,
+      ...(existing.theme?.logoUrl ? { logoUrl: existing.theme.logoUrl } : {}),
+      ...(existing.theme?.faviconUrl
+        ? { faviconUrl: existing.theme.faviconUrl }
+        : {}),
+    };
     await db
       .update(projects)
       .set({
@@ -70,7 +79,7 @@ async function main() {
         tier: hervai.tier,
         accessMode: hervai.accessMode,
         status: hervai.status,
-        theme: hervai.theme,
+        theme,
         config: hervai.config,
         updatedAt: new Date(),
       })

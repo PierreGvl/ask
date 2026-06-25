@@ -88,31 +88,9 @@ export default async function ProjectDetail({
   const identityTab = (
     <Card>
       <CardBody className="flex flex-col gap-5">
-        <div className="grid gap-5 sm:grid-cols-2">
-          <div className="flex flex-col gap-2">
-            <span className="text-xs font-medium uppercase tracking-wide text-faint">
-              Logo
-            </span>
-            <AssetUploader
-              projectId={project.id}
-              kind="logo"
-              currentUrl={project.theme?.logoUrl ?? null}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <span className="text-xs font-medium uppercase tracking-wide text-faint">
-              Favicon (onglet navigateur)
-            </span>
-            <AssetUploader
-              projectId={project.id}
-              kind="favicon"
-              currentUrl={project.theme?.faviconUrl ?? null}
-            />
-          </div>
-        </div>
         <ToastForm
           action={updateProjectAction}
-          className="grid gap-3 border-t border-line pt-5 sm:grid-cols-2"
+          className="grid gap-3 sm:grid-cols-2"
           success="Projet enregistré"
         >
           <input type="hidden" name="id" value={project.id} />
@@ -207,6 +185,26 @@ export default async function ProjectDetail({
             <Button type="submit">Enregistrer</Button>
           </div>
         </ToastForm>
+        <div className="grid gap-5 border-t border-line pt-5 sm:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <span className="text-sm text-faint">Logo</span>
+            <AssetUploader
+              projectId={project.id}
+              kind="logo"
+              currentUrl={project.theme?.logoUrl ?? null}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="text-sm text-faint">
+              Favicon (onglet navigateur)
+            </span>
+            <AssetUploader
+              projectId={project.id}
+              kind="favicon"
+              currentUrl={project.theme?.faviconUrl ?? null}
+            />
+          </div>
+        </div>
       </CardBody>
     </Card>
   );

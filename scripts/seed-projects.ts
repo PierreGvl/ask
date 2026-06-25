@@ -49,14 +49,22 @@ async function main() {
   // Upsert winetech (par slug).
   const existing = await db.query.projects.findFirst({
     where: eq(projects.slug, winetech.slug),
-    columns: { id: true },
+    columns: { id: true, theme: true },
   });
   if (existing) {
+    // Préserve les assets gérés depuis la console (logo/favicon uploadés).
+    const theme = {
+      ...winetech.theme,
+      ...(existing.theme?.logoUrl ? { logoUrl: existing.theme.logoUrl } : {}),
+      ...(existing.theme?.faviconUrl
+        ? { faviconUrl: existing.theme.faviconUrl }
+        : {}),
+    };
     await db
       .update(projects)
       .set({
         name: winetech.name,
-        theme: winetech.theme,
+        theme,
         config: winetech.config,
         updatedAt: new Date(),
       })
