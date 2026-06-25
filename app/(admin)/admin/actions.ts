@@ -72,92 +72,89 @@ export async function createProjectAction(formData: FormData) {
   redirect(`/admin/projects/${id}`);
 }
 
-export async function updateProjectAction(formData: FormData) {
-  await requirePlatformAdmin();
-  const id = str(formData.get("id"));
-  const existing = await q.getProjectById(id);
-  if (!existing) throw new Error("projet introuvable");
-
-  // Theme : on met à jour les couleurs ; logo/favicon/wordmark sont gérés
-  // ailleurs (uploaders) et préservés par le spread de l'existant.
-  const colors: Record<string, string> = {};
-  for (const key of ["navy", "rose", "roseLight"]) {
-    const v = str(formData.get(`color_${key}`));
-    if (v) colors[key] = v;
-  }
-  const theme: ProjectTheme = {
-    ...(existing.theme ?? {}),
-    colors: Object.keys(colors).length ? colors : existing.theme?.colors,
-    heroLogoOnly: formData.get("heroLogoOnly") === "on",
-  };
-
-  const suggestions = str(formData.get("suggestions"))
-    .split("\n")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const config: ProjectConfig = {
-    ...(existing.config ?? {}),
-    systemPrompt: str(formData.get("systemPrompt")) || undefined,
-    greeting: str(formData.get("greeting")) || undefined,
-    suggestions: suggestions.length ? suggestions : undefined,
-    defaultDomain: str(formData.get("defaultDomain")) || undefined,
-    searchToolDescription:
-      str(formData.get("searchToolDescription")) || undefined,
-  };
-
-  const type = asType(formData.get("type"));
-  await q.updateProject(id, {
-    name: str(formData.get("name")) || existing.name,
-    slug: str(formData.get("slug")) || existing.slug,
-    customDomain: str(formData.get("customDomain")) || null,
-    status: formData.get("status") === "suspended" ? "suspended" : "active",
-    type,
-    accessMode: q.accessModeForType(type), // dérivé du type commercial
-    deliveryMode: asDelivery(formData.get("deliveryMode")),
-    billingModel: asBilling(formData.get("billingModel")),
-    theme,
-    config,
-  });
-  revalidatePath(`/admin/projects/${id}`);
-}
-
 const MAX_ASSET_BYTES = 2 * 1024 * 1024; // 2 Mo
 
 /**
- * Téléverse un asset image d'un projet (logo ou favicon), stocké en base, et
- * pointe le champ de thème correspondant (logoUrl/faviconUrl) vers la route
- * /api/assets avec un cache-bust `?v=`.
+ * Traite un fichier image téléversé (logo/favicon) : valide, stocke en base et
+ * renvoie l'URL /api/assets cache-bustée, ou null si aucun fichier fourni.
  */
-export async function uploadProjectImageAction(
+async function processAssetUpload(
+  projectId: string,
+  kind: "logo" | "favicon",
+  file: FormDataEntryValue | null,
+): Promise<string | null> {
+  if (!(file instanceof File) || file.size === 0) return null;
+  const label = kind === "favicon" ? "Le favicon" : "Le logo";
+  if (!file.type.startsWith("image/")) {
+    throw new Error(`${label} doit être une image.`);
+  }
+  if (file.size > MAX_ASSET_BYTES) {
+    throw new Error(`${label} est trop lourd (max 2 Mo).`);
+  }
+  const bytes = Buffer.from(await file.arrayBuffer());
+  await q.upsertProjectAsset({ projectId, kind, mime: file.type, bytes });
+  // `?v=` (mtime) force le rafraîchissement des caches navigateur/Image.
+  return `/api/assets/${projectId}/${kind}?v=${Date.now()}`;
+}
+
+export async function updateProjectAction(
   formData: FormData,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     await requirePlatformAdmin();
-    const projectId = str(formData.get("projectId"));
-    const kind = str(formData.get("kind")) === "favicon" ? "favicon" : "logo";
-    const label = kind === "favicon" ? "Le favicon" : "Le logo";
-    const file = formData.get("file");
-    if (!(file instanceof File) || file.size === 0) {
-      return { ok: false, error: "Fichier requis." };
-    }
-    if (!file.type.startsWith("image/")) {
-      return { ok: false, error: `${label} doit être une image.` };
-    }
-    if (file.size > MAX_ASSET_BYTES) {
-      return { ok: false, error: `${label} est trop lourd (max 2 Mo).` };
-    }
-    const project = await q.getProjectById(projectId);
-    if (!project) return { ok: false, error: "Projet introuvable." };
+    const id = str(formData.get("id"));
+    const existing = await q.getProjectById(id);
+    if (!existing) return { ok: false, error: "Projet introuvable." };
 
-    const bytes = Buffer.from(await file.arrayBuffer());
-    await q.upsertProjectAsset({ projectId, kind, mime: file.type, bytes });
-    // `?v=` (mtime) force le rafraîchissement des caches navigateur/Image.
-    const url = `/api/assets/${projectId}/${kind}?v=${Date.now()}`;
-    const themeKey = kind === "favicon" ? "faviconUrl" : "logoUrl";
-    await q.updateProject(projectId, {
-      theme: { ...(project.theme ?? {}), [themeKey]: url },
+    // Assets éventuellement joints au même formulaire (un seul « Enregistrer »).
+    const logoUrl = await processAssetUpload(id, "logo", formData.get("logo"));
+    const faviconUrl = await processAssetUpload(
+      id,
+      "favicon",
+      formData.get("favicon"),
+    );
+
+    const colors: Record<string, string> = {};
+    for (const key of ["navy", "rose", "roseLight"]) {
+      const v = str(formData.get(`color_${key}`));
+      if (v) colors[key] = v;
+    }
+    const theme: ProjectTheme = {
+      ...(existing.theme ?? {}),
+      colors: Object.keys(colors).length ? colors : existing.theme?.colors,
+      heroLogoOnly: formData.get("heroLogoOnly") === "on",
+      ...(logoUrl ? { logoUrl } : {}),
+      ...(faviconUrl ? { faviconUrl } : {}),
+    };
+
+    const suggestions = str(formData.get("suggestions"))
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const config: ProjectConfig = {
+      ...(existing.config ?? {}),
+      systemPrompt: str(formData.get("systemPrompt")) || undefined,
+      greeting: str(formData.get("greeting")) || undefined,
+      suggestions: suggestions.length ? suggestions : undefined,
+      defaultDomain: str(formData.get("defaultDomain")) || undefined,
+      searchToolDescription:
+        str(formData.get("searchToolDescription")) || undefined,
+    };
+
+    const type = asType(formData.get("type"));
+    await q.updateProject(id, {
+      name: str(formData.get("name")) || existing.name,
+      slug: str(formData.get("slug")) || existing.slug,
+      customDomain: str(formData.get("customDomain")) || null,
+      status: formData.get("status") === "suspended" ? "suspended" : "active",
+      type,
+      accessMode: q.accessModeForType(type), // dérivé du type commercial
+      deliveryMode: asDelivery(formData.get("deliveryMode")),
+      billingModel: asBilling(formData.get("billingModel")),
+      theme,
+      config,
     });
-    revalidatePath(`/admin/projects/${projectId}`);
+    revalidatePath(`/admin/projects/${id}`);
     return { ok: true };
   } catch (err) {
     return {
