@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useBranding } from "@/components/branding/BrandingProvider";
 import type { ChatUIMessage } from "@/lib/chat/types";
 import { ChatPane } from "./ChatPane";
 
@@ -22,6 +23,7 @@ export function ChatView({
   initialMessages: ChatUIMessage[];
   isAuthenticated: boolean;
 }) {
+  const { composerPlaceholder } = useBranding();
   const isNew = !conversationId;
   const [chatId, setChatId] = useState(
     () => conversationId ?? crypto.randomUUID(),
@@ -44,6 +46,7 @@ export function ChatView({
       initialMessages={isNew ? [] : initialMessages}
       isAuthenticated={isAuthenticated}
       isNew={isNew}
+      placeholder={composerPlaceholder}
     />
   );
 }

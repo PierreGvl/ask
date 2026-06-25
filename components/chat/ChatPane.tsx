@@ -20,6 +20,7 @@ export function ChatPane({
   api = "/api/chat",
   headers,
   embedded = false,
+  placeholder,
 }: {
   chatId: string;
   initialMessages: ChatUIMessage[];
@@ -31,6 +32,8 @@ export function ChatPane({
   headers?: Record<string, string>;
   /** Mode embarqué (iframe) : masque le bandeau invité / liens app. */
   embedded?: boolean;
+  /** Texte d'invite (hébergé) ; transmis par le branding. */
+  placeholder?: string;
 }) {
   const router = useRouter();
   const navigatedRef = useRef(false);
@@ -98,7 +101,13 @@ export function ChatPane({
             <Greeting />
             <Suggestions onPick={handleSend} />
             <div className="w-full">
-              <Composer onSend={handleSend} onStop={stop} busy={busy} large />
+              <Composer
+                onSend={handleSend}
+                onStop={stop}
+                busy={busy}
+                large
+                placeholder={placeholder}
+              />
             </div>
           </div>
         </div>
@@ -157,6 +166,7 @@ export function ChatPane({
               onStop={stop}
               busy={busy}
               embedded={embedded}
+              placeholder={placeholder}
             />
           </div>
         </>

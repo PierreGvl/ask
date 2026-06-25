@@ -78,6 +78,7 @@ export type ProjectConfig = {
   systemPrompt?: string; // persona/cadrage métier (les garde-fous restent en base partagée)
   greeting?: string;
   disclaimer?: string; // phrase sous la zone de saisie (avertissement)
+  composerPlaceholder?: string; // texte d'invite dans la zone de saisie
   suggestions?: string[];
   locale?: string;
   defaultDomain?: string;

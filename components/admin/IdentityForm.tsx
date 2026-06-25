@@ -60,8 +60,9 @@ export function IdentityForm({ project }: { project: Project }) {
   const cfg = project.config ?? {};
   // Fallback sur les assets par défaut (mêmes que le chat) : un projet sans
   // upload (ex. Wine Tech) affiche quand même le logo/favicon effectif.
-  const shownLogo = logoPreview ?? project.theme?.logoUrl ?? "/logo.png";
-  const shownFavicon = faviconPreview ?? project.theme?.faviconUrl ?? "/icon.png";
+  const shownLogo = logoPreview ?? project.theme?.logoUrl ?? "/default-logo.svg";
+  const shownFavicon =
+    faviconPreview ?? project.theme?.faviconUrl ?? "/default-logo.svg";
 
   function onPick(
     e: React.ChangeEvent<HTMLInputElement>,
@@ -228,6 +229,12 @@ export function IdentityForm({ project }: { project: Project }) {
         name="greeting"
         label="Message d'accueil"
         defaultValue={cfg.greeting ?? ""}
+      />
+      <Field
+        name="composerPlaceholder"
+        label="Texte d'invite (placeholder du champ de saisie)"
+        defaultValue={cfg.composerPlaceholder ?? ""}
+        placeholder="Écrivez votre message…"
       />
       <Area
         name="disclaimer"

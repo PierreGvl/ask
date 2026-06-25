@@ -32,8 +32,8 @@ export async function generateMetadata(): Promise<Metadata> {
   if (!(await isConsoleHost())) {
     meta.icons = {
       icon: faviconUrl,
-      // Faute d'asset dédié, on réutilise le favicon du projet (sinon l'icône iOS par défaut).
-      apple: project?.theme?.faviconUrl || "/apple-icon.png",
+      // Faute d'asset dédié, on réutilise le favicon du projet (sinon le défaut neutre).
+      apple: project?.theme?.faviconUrl || "/default-logo.svg",
     };
   }
   return meta;

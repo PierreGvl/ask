@@ -160,6 +160,7 @@ export async function updateProjectAction(
       systemPrompt: str(formData.get("systemPrompt")) || undefined,
       greeting: str(formData.get("greeting")) || undefined,
       disclaimer: str(formData.get("disclaimer")) || undefined,
+      composerPlaceholder: str(formData.get("composerPlaceholder")) || undefined,
       suggestions: suggestions.length ? suggestions : undefined,
       defaultDomain: str(formData.get("defaultDomain")) || undefined,
       searchToolDescription:

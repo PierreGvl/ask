@@ -26,6 +26,7 @@ export function Composer({
   busy,
   large,
   embedded,
+  placeholder,
 }: {
   onSend: (text: string) => void;
   onStop: () => void;
@@ -33,6 +34,8 @@ export function Composer({
   large?: boolean;
   /** Widget : textes neutres (ni placeholder ni marque spécifiques au tenant). */
   embedded?: boolean;
+  /** Texte d'invite (hébergé) ; le widget garde un texte neutre. */
+  placeholder?: string;
 }) {
   const [value, setValue] = useState("");
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -75,7 +78,9 @@ export function Composer({
           onKeyDown={onKeyDown}
           rows={1}
           placeholder={
-            embedded ? "Écrivez votre message…" : "Posez votre question sur le vin…"
+            embedded
+              ? "Écrivez votre message…"
+              : (placeholder ?? "Écrivez votre message…")
           }
           className={cn(
             "max-h-[240px] flex-1 resize-none bg-transparent px-3 py-2 text-[0.95rem] text-ink placeholder:text-faint focus:outline-none",

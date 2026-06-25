@@ -19,6 +19,8 @@ export type Branding = {
   greeting: string;
   /** Avertissement sous la zone de saisie. */
   disclaimer: string;
+  /** Texte d'invite dans la zone de saisie. */
+  composerPlaceholder: string;
   suggestions: string[];
   /** Absent → le Wordmark rend sa version par défaut figée. */
   wordmark: { parts: WordmarkPart[] } | null;
@@ -30,12 +32,14 @@ const DEFAULT_DESCRIPTION =
 export const DEFAULT_BRANDING: Branding = {
   name: "Ask by La Wine Tech",
   description: DEFAULT_DESCRIPTION,
-  logoUrl: "/logo.png",
-  faviconUrl: "/icon.png",
+  // Fallbacks NEUTRES : un projet sans asset n'hérite plus du logo Wine Tech.
+  logoUrl: "/default-logo.svg",
+  faviconUrl: "/default-logo.svg",
   heroLogoOnly: false,
   brandMode: "wordmark",
   greeting: GREETING,
   disclaimer: "L'assistant peut faire des erreurs.",
+  composerPlaceholder: "Écrivez votre message…",
   suggestions: SUGGESTIONS,
   wordmark: null,
 };
@@ -55,6 +59,8 @@ export function getBranding(project: Project | null): Branding {
     brandMode: theme.brandMode ?? "wordmark",
     greeting: cfg.greeting || DEFAULT_BRANDING.greeting,
     disclaimer: cfg.disclaimer || DEFAULT_BRANDING.disclaimer,
+    composerPlaceholder:
+      cfg.composerPlaceholder || DEFAULT_BRANDING.composerPlaceholder,
     suggestions:
       cfg.suggestions && cfg.suggestions.length
         ? cfg.suggestions
