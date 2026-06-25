@@ -14,7 +14,11 @@ export type Branding = {
   faviconUrl: string;
   /** true → héro sans titre « Bonjour ! », logo agrandi. */
   heroLogoOnly: boolean;
+  /** En-tête sidebar : texte stylisé (wordmark) ou image (logo). */
+  brandMode: "wordmark" | "logo";
   greeting: string;
+  /** Avertissement sous la zone de saisie. */
+  disclaimer: string;
   suggestions: string[];
   /** Absent → le Wordmark rend sa version par défaut figée. */
   wordmark: { parts: WordmarkPart[] } | null;
@@ -29,7 +33,9 @@ export const DEFAULT_BRANDING: Branding = {
   logoUrl: "/logo.png",
   faviconUrl: "/icon.png",
   heroLogoOnly: false,
+  brandMode: "wordmark",
   greeting: GREETING,
+  disclaimer: "L'assistant peut faire des erreurs.",
   suggestions: SUGGESTIONS,
   wordmark: null,
 };
@@ -46,7 +52,9 @@ export function getBranding(project: Project | null): Branding {
     logoUrl: theme.logoUrl || DEFAULT_BRANDING.logoUrl,
     faviconUrl: theme.faviconUrl || DEFAULT_BRANDING.faviconUrl,
     heroLogoOnly: theme.heroLogoOnly ?? false,
+    brandMode: theme.brandMode ?? "wordmark",
     greeting: cfg.greeting || DEFAULT_BRANDING.greeting,
+    disclaimer: cfg.disclaimer || DEFAULT_BRANDING.disclaimer,
     suggestions:
       cfg.suggestions && cfg.suggestions.length
         ? cfg.suggestions

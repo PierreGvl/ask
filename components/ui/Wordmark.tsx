@@ -1,17 +1,31 @@
 "use client";
 
+import Image from "next/image";
 import { useBranding } from "@/components/branding/BrandingProvider";
 import { cn } from "@/lib/utils";
 
 /**
- * Logotype typographique du tenant.
+ * En-tête de marque du tenant (haut de la sidebar).
  *
- * Si le projet définit un wordmark (theme.wordmark.parts), on le rend
- * dynamiquement ; sinon on rend l'identité par défaut « Ask By La WineTech »
- * (« Ask » navy, « By La » discret, « WineTech » rose).
+ * Mode `logo` → image (logoUrl). Sinon (mode `wordmark`, défaut) : texte stylisé
+ * depuis theme.wordmark.parts, ou l'identité par défaut « Ask By La WineTech ».
  */
 export function Wordmark({ className }: { className?: string }) {
-  const { wordmark } = useBranding();
+  const { wordmark, brandMode, logoUrl, name } = useBranding();
+
+  if (brandMode === "logo") {
+    return (
+      <Image
+        src={logoUrl}
+        alt={name}
+        width={160}
+        height={48}
+        priority
+        unoptimized
+        className={cn("h-10 w-auto max-w-[200px] object-contain", className)}
+      />
+    );
+  }
 
   return (
     <span

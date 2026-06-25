@@ -65,6 +65,8 @@ export type ProjectTheme = {
   colors?: Record<string, string>; // ex. { navy: "#141934", rose: "#e33170" }
   logoUrl?: string | null;
   faviconUrl?: string | null; // icône onglet/apple, servie par /api/assets
+  // En-tête (haut de la sidebar) : texte stylisé (wordmark) ou image (logo).
+  brandMode?: "wordmark" | "logo";
   // Héro du chat : true → masque le titre « Bonjour ! » et agrandit le logo.
   heroLogoOnly?: boolean;
   wordmark?: { parts: WordmarkPart[] };
@@ -75,6 +77,7 @@ export type ProjectTheme = {
 export type ProjectConfig = {
   systemPrompt?: string; // persona/cadrage métier (les garde-fous restent en base partagée)
   greeting?: string;
+  disclaimer?: string; // phrase sous la zone de saisie (avertissement)
   suggestions?: string[];
   locale?: string;
   defaultDomain?: string;

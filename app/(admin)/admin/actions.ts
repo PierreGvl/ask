@@ -16,6 +16,7 @@ import {
   type ProjectFeatures,
   type ProjectTheme,
   type ProjectType,
+  type WordmarkPart,
 } from "@/lib/db/schema";
 
 function str(v: FormDataEntryValue | null): string {
@@ -97,6 +98,27 @@ async function processAssetUpload(
   return `/api/assets/${projectId}/${kind}?v=${Date.now()}`;
 }
 
+/** Parse le JSON des segments du wordmark ; null si absent/invalide/vide. */
+function parseWordmark(
+  raw: FormDataEntryValue | null,
+): { parts: WordmarkPart[] } | null {
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  try {
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return null;
+    const parts: WordmarkPart[] = arr
+      .filter((p) => p && typeof p.text === "string" && p.text.trim())
+      .map((p) => ({
+        text: p.text.trim(),
+        ...(typeof p.color === "string" ? { color: p.color } : {}),
+        ...(p.dim ? { dim: true } : {}),
+      }));
+    return parts.length ? { parts } : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function updateProjectAction(
   formData: FormData,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -123,6 +145,8 @@ export async function updateProjectAction(
       ...(existing.theme ?? {}),
       colors: Object.keys(colors).length ? colors : existing.theme?.colors,
       heroLogoOnly: formData.get("heroLogoOnly") === "on",
+      brandMode: formData.get("brandMode") === "logo" ? "logo" : "wordmark",
+      wordmark: parseWordmark(formData.get("wordmark")) ?? existing.theme?.wordmark,
       ...(logoUrl ? { logoUrl } : {}),
       ...(faviconUrl ? { faviconUrl } : {}),
     };
@@ -135,6 +159,7 @@ export async function updateProjectAction(
       ...(existing.config ?? {}),
       systemPrompt: str(formData.get("systemPrompt")) || undefined,
       greeting: str(formData.get("greeting")) || undefined,
+      disclaimer: str(formData.get("disclaimer")) || undefined,
       suggestions: suggestions.length ? suggestions : undefined,
       defaultDomain: str(formData.get("defaultDomain")) || undefined,
       searchToolDescription:

@@ -3,6 +3,7 @@
 import { ImageUp } from "lucide-react";
 import { type ReactNode, useRef, useState, useTransition } from "react";
 import { updateProjectAction } from "@/app/(admin)/admin/actions";
+import { WordmarkEditor } from "@/components/admin/WordmarkEditor";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
@@ -49,13 +50,18 @@ export function IdentityForm({ project }: { project: Project }) {
   const [pending, start] = useTransition();
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [faviconPreview, setFaviconPreview] = useState<string | null>(null);
+  const [brandMode, setBrandMode] = useState<"wordmark" | "logo">(
+    project.theme?.brandMode ?? "wordmark",
+  );
   const logoRef = useRef<HTMLInputElement>(null);
   const faviconRef = useRef<HTMLInputElement>(null);
 
   const colors = project.theme?.colors ?? {};
   const cfg = project.config ?? {};
-  const shownLogo = logoPreview ?? project.theme?.logoUrl ?? null;
-  const shownFavicon = faviconPreview ?? project.theme?.faviconUrl ?? null;
+  // Fallback sur les assets par défaut (mêmes que le chat) : un projet sans
+  // upload (ex. Wine Tech) affiche quand même le logo/favicon effectif.
+  const shownLogo = logoPreview ?? project.theme?.logoUrl ?? "/logo.png";
+  const shownFavicon = faviconPreview ?? project.theme?.faviconUrl ?? "/icon.png";
 
   function onPick(
     e: React.ChangeEvent<HTMLInputElement>,
@@ -158,11 +164,36 @@ export function IdentityForm({ project }: { project: Project }) {
         placeholder="reglementaire"
       />
 
-      {/* Identité visuelle : logo + favicon + option d'accueil, regroupés */}
+      {/* Identité visuelle : en-tête, logo + favicon, option d'accueil */}
       <div className="flex flex-col gap-4 border-t border-line pt-4 sm:col-span-2">
         <span className="text-sm font-medium text-navy-700">
           Identité visuelle
         </span>
+
+        <Labeled label="En-tête (haut de la sidebar)">
+          <Select
+            name="brandMode"
+            value={brandMode}
+            onChange={(e) =>
+              setBrandMode(e.target.value as "wordmark" | "logo")
+            }
+            className="sm:w-72"
+          >
+            <option value="wordmark">Texte stylisé</option>
+            <option value="logo">Logo (image)</option>
+          </Select>
+        </Labeled>
+        {brandMode === "wordmark" && (
+          <div className="flex flex-col gap-1 text-sm">
+            <span className="text-faint">
+              Texte stylisé — un segment par mot (couleur + atténué)
+            </span>
+            <WordmarkEditor
+              defaultParts={project.theme?.wordmark?.parts ?? []}
+            />
+          </div>
+        )}
+
         <div className="grid gap-5 sm:grid-cols-2">
           <AssetField
             label="Logo"
@@ -197,6 +228,12 @@ export function IdentityForm({ project }: { project: Project }) {
         name="greeting"
         label="Message d'accueil"
         defaultValue={cfg.greeting ?? ""}
+      />
+      <Area
+        name="disclaimer"
+        label="Avertissement (sous la zone de saisie)"
+        defaultValue={cfg.disclaimer ?? ""}
+        full
       />
       <Area
         name="systemPrompt"

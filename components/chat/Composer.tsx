@@ -7,7 +7,18 @@ import {
   useRef,
   useState,
 } from "react";
+import { useBranding } from "@/components/branding/BrandingProvider";
 import { cn } from "@/lib/utils";
+
+/**
+ * Avertissement sous la zone de saisie, paramétrable par projet (config.disclaimer).
+ * Composant séparé : n'utilise useBranding() qu'en mode hébergé (le widget /embed
+ * n'a pas de BrandingProvider).
+ */
+function Disclaimer() {
+  const { disclaimer } = useBranding();
+  return <p className="mt-2 text-center text-xs text-faint">{disclaimer}</p>;
+}
 
 export function Composer({
   onSend,
@@ -91,11 +102,13 @@ export function Composer({
           </button>
         )}
       </div>
-      <p className="mt-2 text-center text-xs text-faint">
-        {embedded
-          ? "L'assistant peut faire des erreurs."
-          : "Ask By la Wine Tech peut faire des erreurs. Vérifiez les informations réglementaires importantes."}
-      </p>
+      {embedded ? (
+        <p className="mt-2 text-center text-xs text-faint">
+          L&apos;assistant peut faire des erreurs.
+        </p>
+      ) : (
+        <Disclaimer />
+      )}
     </form>
   );
 }
