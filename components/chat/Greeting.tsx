@@ -14,6 +14,7 @@ export function Greeting() {
           width={120}
           height={120}
           priority
+          unoptimized
           className="object-contain"
         />
         <h1 className="font-serif text-4xl font-semibold text-navy sm:text-5xl md:text-6xl">

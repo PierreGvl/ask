@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  customType,
   index,
   integer,
   jsonb,
@@ -12,6 +13,13 @@ import {
   uuid,
   vector,
 } from "drizzle-orm/pg-core";
+
+/** Colonne binaire Postgres (bytea) — stockage des petits assets (logos). */
+const bytea = customType<{ data: Buffer }>({
+  dataType() {
+    return "bytea";
+  },
+});
 
 export const PROJECT_ROLES = ["owner", "admin", "member"] as const;
 export type ProjectRole = (typeof PROJECT_ROLES)[number];
@@ -143,6 +151,29 @@ export const projectPlans = pgTable(
       .notNull(),
   },
   (t) => [index("project_plans_project_idx").on(t.projectId)],
+);
+
+// --- Assets binaires d'un projet (logo, etc.) stockés en base ---
+// Un asset par (projet, kind) — upsert à chaque téléversement. Le binaire vit
+// dans Postgres (inclus au dump, survit aux redéploiements) et est servi par
+// /api/assets/<projectId>/<kind>. theme.logoUrl pointe vers cette route.
+export const projectAssets = pgTable(
+  "project_assets",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull().default("logo"), // logo, favicon…
+    mime: text("mime").notNull(),
+    bytes: bytea("bytes").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    uniqueIndex("project_assets_project_kind_unique").on(t.projectId, t.kind),
+  ],
 );
 
 // --- Comptes utilisateurs : CLOISONNÉS PAR TENANT (marque blanche) ---
@@ -451,6 +482,7 @@ export type Chunk = typeof chunks.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type PlatformAdmin = typeof platformAdmins.$inferSelect;
 export type ProjectPlan = typeof projectPlans.$inferSelect;
+export type ProjectAsset = typeof projectAssets.$inferSelect;
 export type ProjectInvitation = typeof projectInvitations.$inferSelect;
 export type Corpus = typeof corpora.$inferSelect;
 export type ProjectCorpus = typeof projectCorpora.$inferSelect;

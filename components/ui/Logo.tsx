@@ -22,6 +22,7 @@ export function Logo({
         width={size}
         height={size}
         priority
+        unoptimized
         className="rounded-md object-contain"
       />
       {withWordmark && (

@@ -11,6 +11,7 @@ import {
   type DeliveryMode,
   documents,
   type ProjectConfig,
+  projectAssets,
   projectCorpora,
   type ProjectFeatures,
   projectPlans,
@@ -154,6 +155,34 @@ export async function setProjectAccessMode(
     .update(projects)
     .set({ accessMode, updatedAt: new Date() })
     .where(eq(projects.id, id));
+}
+
+// --- Assets binaires (logo…) ---
+
+/** Lit un asset (binaire + mime) d'un projet, ou null. */
+export function getProjectAsset(projectId: string, kind: string) {
+  return db.query.projectAssets.findFirst({
+    where: and(
+      eq(projectAssets.projectId, projectId),
+      eq(projectAssets.kind, kind),
+    ),
+  });
+}
+
+/** Upsert d'un asset : un seul binaire par (projet, kind). */
+export async function upsertProjectAsset(input: {
+  projectId: string;
+  kind: string;
+  mime: string;
+  bytes: Buffer;
+}) {
+  await db
+    .insert(projectAssets)
+    .values(input)
+    .onConflictDoUpdate({
+      target: [projectAssets.projectId, projectAssets.kind],
+      set: { mime: input.mime, bytes: input.bytes, updatedAt: new Date() },
+    });
 }
 
 // --- Paliers d'offre (project_plans) ---

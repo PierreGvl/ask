@@ -10,6 +10,7 @@ import {
   updateProjectAction,
 } from "@/app/(admin)/admin/actions";
 import { ApiKeyCreator } from "@/components/admin/ApiKeyCreator";
+import { LogoUploader } from "@/components/admin/LogoUploader";
 import { PlansEditor } from "@/components/admin/PlansEditor";
 import { ProjectTabs } from "@/components/admin/ProjectTabs";
 import { MembersPanel } from "@/components/projects/MembersPanel";
@@ -86,10 +87,19 @@ export default async function ProjectDetail({
 
   const identityTab = (
     <Card>
-      <CardBody>
+      <CardBody className="flex flex-col gap-5">
+        <div className="flex flex-col gap-2">
+          <span className="text-xs font-medium uppercase tracking-wide text-faint">
+            Logo
+          </span>
+          <LogoUploader
+            projectId={project.id}
+            currentLogoUrl={project.theme?.logoUrl ?? null}
+          />
+        </div>
         <ToastForm
           action={updateProjectAction}
-          className="grid gap-3 sm:grid-cols-2"
+          className="grid gap-3 border-t border-line pt-5 sm:grid-cols-2"
           success="Projet enregistré"
         >
           <input type="hidden" name="id" value={project.id} />
@@ -151,7 +161,7 @@ export default async function ProjectDetail({
           />
           <TextField
             name="logoUrl"
-            label="URL du logo"
+            label="URL du logo (rempli par le téléversement, ou URL externe)"
             defaultValue={project.theme?.logoUrl ?? ""}
             placeholder="/logo.png"
           />

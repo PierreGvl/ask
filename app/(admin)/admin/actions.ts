@@ -120,6 +120,35 @@ export async function updateProjectAction(formData: FormData) {
   revalidatePath(`/admin/projects/${id}`);
 }
 
+const MAX_LOGO_BYTES = 2 * 1024 * 1024; // 2 Mo
+
+/** Téléverse le logo d'un projet (stocké en base) et met à jour theme.logoUrl. */
+export async function uploadProjectLogoAction(formData: FormData) {
+  await requirePlatformAdmin();
+  const projectId = str(formData.get("projectId"));
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("Fichier requis.");
+  }
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Le logo doit être une image.");
+  }
+  if (file.size > MAX_LOGO_BYTES) {
+    throw new Error("Logo trop lourd (max 2 Mo).");
+  }
+  const project = await q.getProjectById(projectId);
+  if (!project) throw new Error("projet introuvable");
+
+  const bytes = Buffer.from(await file.arrayBuffer());
+  await q.upsertProjectAsset({ projectId, kind: "logo", mime: file.type, bytes });
+  // `?v=` (mtime) force le rafraîchissement des caches navigateur/Image.
+  const logoUrl = `/api/assets/${projectId}/logo?v=${Date.now()}`;
+  await q.updateProject(projectId, {
+    theme: { ...(project.theme ?? {}), logoUrl },
+  });
+  revalidatePath(`/admin/projects/${projectId}`);
+}
+
 export async function deleteProjectAction(formData: FormData) {
   await requirePlatformAdmin();
   await q.deleteProject(str(formData.get("id")));
